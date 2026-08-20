@@ -1,6 +1,21 @@
 # NeoBanco Microservicios
 
-Proyecto de simulación de un banco digital construido con una arquitectura de microservicios. El objetivo es modelar los principales flujos de un neobanco, manteniendo cada capacidad de negocio aislada y comunicada mediante APIs REST, WebSockets y eventos asíncronos.
+Proyecto de portafolio técnico que simula una plataforma bancaria digital construida con una arquitectura de microservicios Java. El objetivo es demostrar el diseño, desarrollo y despliegue de un sistema distribuido con APIs REST, WebSockets, mensajería asíncrona, persistencia separada y automatización de infraestructura.
+
+## Objetivo del portafolio
+
+El proyecto está diseñado para mostrar, de forma práctica y verificable:
+
+- Diseño de dominios y separación de responsabilidades en microservicios.
+- Autenticación y autorización de usuarios.
+- Gestión de cuentas y operaciones monetarias.
+- Consistencia e idempotencia en transferencias.
+- Comunicación síncrona mediante REST y asíncrona mediante RabbitMQ.
+- Notificaciones en tiempo real con WebSockets.
+- Auditoría, trazabilidad y manejo de errores.
+- Contenerización con Docker y despliegue automatizado con GitHub Actions.
+
+El alcance es educativo y demostrativo: se prioriza un flujo completo y bien probado sobre la cantidad de funcionalidades.
 
 ## Arquitectura
 
@@ -65,6 +80,7 @@ flowchart TB
 - No se accede directamente a la base de datos de otro microservicio.
 - Las operaciones monetarias deben ser idempotentes.
 - Los eventos asíncronos se publican después de validar la operación de negocio.
+- Las transferencias utilizan el patrón Transactional Outbox para evitar perder eventos cuando la base de datos y RabbitMQ no responden de forma atómica.
 - Las operaciones críticas deben dejar trazabilidad en auditoría.
 - La comunicación externa se concentra en el API Gateway.
 - Los secretos y las credenciales se gestionan mediante configuración externa, nunca en el código fuente.
@@ -81,7 +97,16 @@ El frontend solicita la información de las cuentas a través del gateway. `MS C
 
 ### Transferencia
 
-`MS Transacciones` valida el emisor, receptor, importe y reglas de negocio. Redis se utiliza para garantizar la idempotencia de la petición y PostgreSQL para conservar la transacción. Una vez aceptada, el servicio publica un evento en RabbitMQ para notificaciones y auditoría.
+`MS Transacciones` valida el emisor, receptor, importe y reglas de negocio. Redis se utiliza para garantizar la idempotencia de la petición y PostgreSQL para conservar la transacción. La operación y su evento se guardan en una tabla Outbox dentro de la misma transacción de base de datos. Un publicador independiente envía posteriormente el evento a RabbitMQ para notificaciones y auditoría.
+
+El flujo principal que se pretende demostrar es:
+
+```text
+Angular -> Nginx -> MS Transacciones -> PostgreSQL / Redis
+									  -> Outbox -> RabbitMQ
+												   -> MS Notificaciones -> WebSocket
+												   -> MS Auditoría -> PostgreSQL
+```
 
 ### Notificaciones
 
@@ -112,7 +137,9 @@ neobanco-microservicios/
 - Redis para idempotencia.
 - RabbitMQ como broker de mensajería.
 - WebSockets para notificaciones en tiempo real.
-- El lenguaje y framework de cada microservicio quedan pendientes de definir.
+- Java para los microservicios backend.
+- Docker para empaquetado y ejecución local.
+- GitHub Actions para integración y despliegue automatizado.
 
 ## Puesta en marcha
 
@@ -229,7 +256,7 @@ Los microservicios Java se ejecutan en la red interna de Docker y mantienen los 
 
 ## Contratos y eventos
 
-Antes de implementar los servicios conviene definir y versionar:
+Los contratos y eventos deben definirse y versionarse junto con el código:
 
 - Contratos REST de cada microservicio, preferiblemente mediante OpenAPI.
 - Esquemas de los eventos publicados en RabbitMQ.
@@ -238,10 +265,41 @@ Antes de implementar los servicios conviene definir y versionar:
 - Política de reintentos, mensajes fallidos y duplicados.
 - Formato común de errores y correlación de peticiones.
 
+El evento de transferencia debería incluir, como mínimo, un identificador único de evento, el identificador de la transferencia, el estado de la operación, fecha de creación y un `correlation-id`. Los consumidores deben procesarlo de forma idempotente.
+
+## Evidencias técnicas
+
+Para que el proyecto sea evaluable como portfolio, se documentarán y demostrarán estos escenarios:
+
+- Registro e inicio de sesión de un usuario.
+- Consulta de cuentas y saldos.
+- Transferencia válida entre dos cuentas.
+- Rechazo de una transferencia por saldo insuficiente.
+- Reintento de una transferencia con la misma clave de idempotencia.
+- Recepción de una notificación en tiempo real.
+- Consulta del registro de auditoría.
+- Ejecución de pruebas y despliegue desde GitHub Actions.
+
+Las evidencias recomendadas son capturas del frontend, ejemplos de peticiones REST, mensajes RabbitMQ, logs con `correlation-id`, resultados de pruebas y ejecuciones exitosas del pipeline.
+
+## Hoja de ruta
+
+- [ ] Crear los proyectos base de los microservicios Java.
+- [ ] Definir los contratos REST con OpenAPI.
+- [ ] Implementar autenticación y autorización.
+- [ ] Implementar cuentas, saldos y transferencias.
+- [ ] Añadir Redis para idempotencia.
+- [ ] Implementar Transactional Outbox y publicación en RabbitMQ.
+- [ ] Implementar notificaciones WebSocket.
+- [ ] Implementar auditoría y logs estructurados.
+- [ ] Añadir pruebas unitarias, de integración y de flujo completo.
+- [ ] Automatizar build, pruebas y despliegue con GitHub Actions.
+- [ ] Añadir observabilidad, backups y documentación operativa.
+
 ## Estado del proyecto
 
 Este repositorio se encuentra en la fase inicial de definición de arquitectura. El diagrama y este documento describen la solución objetivo; la implementación de los microservicios, la infraestructura local, los contratos y las pruebas se incorporarán progresivamente.
 
 ## Aviso
 
-Este proyecto tiene fines educativos y de simulación. No está diseñado para gestionar dinero real ni para utilizarse en un entorno bancario productivo sin un análisis de seguridad, cumplimiento normativo, resiliencia, observabilidad y operación adecuado.
+Este proyecto es un portfolio técnico con fines educativos y de simulación. No está diseñado para gestionar dinero real ni para utilizarse en un entorno bancario productivo sin un análisis de seguridad, cumplimiento normativo, resiliencia, observabilidad y operación adecuado.
