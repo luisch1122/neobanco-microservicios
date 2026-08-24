@@ -1,5 +1,7 @@
 package com.banco.auth.service;
 
-public class AuthService {
+public interface AuthService{
+
+    
 
 }
