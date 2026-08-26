@@ -1,6 +1,7 @@
 package com.banco.auth.model;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -11,19 +12,22 @@ import java.time.LocalDateTime;
 @Data // Lombok genera los Getters y Setters automáticamente
 @NoArgsConstructor
 @AllArgsConstructor
-public class Usuario {
+public class Users {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @Column(nullable = false, length = 100)
+    @NotBlank
     private String nombre;
 
     @Column(nullable = false, unique = true, length = 100)
+    @NotBlank
     private String email;
 
     @Column(nullable = false)
+    @NotBlank
     private String passwordHash;
 
     @Column(nullable = false, updatable = false)

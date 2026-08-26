@@ -2,23 +2,29 @@ package com.banco.auth.service;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import com.banco.auth.model.Usuario;
+import com.banco.auth.model.Users;
 
 import org.springframework.stereotype.Service;
 
 @Service
 public class AuthServiceImpl implements AuthService {
 
-    private UsuarioService usuarioService;
-    private PasswordEncoder passwordEncoder;
+    private final UserService userService;
+    private final PasswordEncoder passwordEncoder;
 
+    public AuthServiceImpl(UserService usuarioService, PasswordEncoder passwordEncoder) {
+        this.userService = usuarioService;
+        this.passwordEncoder = passwordEncoder;
+    }
 
     @Override
-    public Usuario registrar(Usuario usuario) {
-        usuario.setPasswordHash(
-            passwordEncoder.encode(usuario.getPasswordHash())
+    public Users register(Users users) {
+
+        users.setPasswordHash(
+            passwordEncoder.encode(users.getPasswordHash())
         );
-        return usuarioService.guardar(usuario);
+        
+        return userService.save(users);
     }
 
     @Override

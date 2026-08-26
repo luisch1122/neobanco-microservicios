@@ -2,9 +2,9 @@ package com.banco.auth.repository;
 
 import org.springframework.data.repository.CrudRepository;
 
-import com.banco.auth.model.Usuario;
+import com.banco.auth.model.Users;
 
-public interface UsuarioRepository extends CrudRepository<Usuario, Long> {
+public interface UsersRepository extends CrudRepository<Users, Long> {
 
     
 

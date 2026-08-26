@@ -1,8 +1,8 @@
 package com.banco.auth.service;
-import com.banco.auth.model.Usuario;
+import com.banco.auth.model.Users;
 public interface AuthService{
 
-    Usuario registrar(Usuario usuario);
+    Users register(Users users);
     String login(String username, String password);
 
 }
