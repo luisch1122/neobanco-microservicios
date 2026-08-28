@@ -2,6 +2,7 @@ package com.banco.auth.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
@@ -13,7 +14,7 @@ public class SecurityConfig {
     SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 
         return http.authorizeHttpRequests( (authz) -> authz
-        .requestMatchers("/auth/register").permitAll()
+        .requestMatchers(HttpMethod.POST, "/auth/register").permitAll()
         .anyRequest().authenticated())
         .csrf(config -> config.disable())
         .sessionManagement(management -> management.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
