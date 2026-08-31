@@ -27,9 +27,9 @@ class AuthServiceImplTest {
     @Test
     void registrarEncriptaLaContrasenaYGuardaElUsuario() {
         Users usuario = new Users();
-        usuario.setPasswordHash("contrasena-original");
+        usuario.setPassword("contrasena-original");
         Users usuarioGuardado = new Users();
-        usuarioGuardado.setPasswordHash("hash-generado");
+        usuarioGuardado.setPassword("hash-generado");
 
         when(passwordEncoder.encode("contrasena-original")).thenReturn("hash-generado");
         when(userService.save(usuario)).thenReturn(usuarioGuardado);

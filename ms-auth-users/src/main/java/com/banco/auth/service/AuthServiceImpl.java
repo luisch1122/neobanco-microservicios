@@ -20,8 +20,8 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public Users register(Users users) {
 
-        users.setPasswordHash(
-            passwordEncoder.encode(users.getPasswordHash())
+        users.setPassword(
+            passwordEncoder.encode(users.getPassword())
         );
         
         return userService.save(users);

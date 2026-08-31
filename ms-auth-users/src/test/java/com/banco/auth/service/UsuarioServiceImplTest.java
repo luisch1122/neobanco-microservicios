@@ -28,7 +28,7 @@ class UsuarioServiceImplTest {
 
         when(usersRepository.save(usuario)).thenReturn(usuarioGuardado);
 
-        Users resultado = usersRepository.save(usuario);
+        Users resultado = userServiceImpl.save(usuario);
 
         assertSame(usuarioGuardado, resultado);
         verify(usersRepository).save(usuario);

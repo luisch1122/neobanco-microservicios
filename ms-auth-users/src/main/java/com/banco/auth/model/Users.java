@@ -28,7 +28,7 @@ public class Users {
 
     @Column(nullable = false)
     @NotBlank
-    private String passwordHash;
+    private String password;
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime creadoEn = LocalDateTime.now();
