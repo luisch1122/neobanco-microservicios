@@ -28,11 +28,21 @@ public class Users {
 
     @Column(nullable = false)
     @NotBlank
-    private String passwordHash;
+    private String password;
 
     @Column(nullable = false, updatable = false)
-    private LocalDateTime creadoEn = LocalDateTime.now();
-    
+    private LocalDateTime creadoEn;
+
     @Column(nullable = false, length = 20)
     private String estado = "ACTIVO";
+
+    @PrePersist
+    public void prePersist() {
+        if (this.creadoEn == null) {
+            this.creadoEn = LocalDateTime.now();
+        }
+        if (this.estado == null || this.estado.isBlank()) {
+            this.estado = "ACTIVO";
+        }
+    }
 }
