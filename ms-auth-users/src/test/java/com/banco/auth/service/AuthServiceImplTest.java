@@ -8,7 +8,10 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -40,4 +43,21 @@ class AuthServiceImplTest {
         verify(passwordEncoder).encode("contrasena-original");
         verify(userService).save(usuario);
     }
-}
+    @Test
+    void registrarAsignaEstadoYFechaSiFaltan() {
+        Users usuario = new Users();
+        usuario.setPassword("contrasena-original");
+
+        when(passwordEncoder.encode("contrasena-original")).thenReturn("hash-generado");
+        when(userService.save(any(Users.class))).thenAnswer(invocation -> {
+            Users guardado = invocation.getArgument(0);
+            assertEquals("ACTIVO", guardado.getEstado());
+            assertNotNull(guardado.getCreadoEn());
+            return guardado;
+        });
+
+        authService.register(usuario);
+
+        verify(passwordEncoder).encode("contrasena-original");
+        verify(userService).save(any(Users.class));
+    }}
