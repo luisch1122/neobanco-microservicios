@@ -5,5 +5,6 @@ import com.banco.auth.model.Users;
 public interface UserService {
 
     Users save(Users users);
+    boolean existsByEmail(String email);
 
 }

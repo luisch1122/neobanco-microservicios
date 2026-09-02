@@ -6,8 +6,7 @@ import com.banco.auth.model.Users;
 
 public interface UsersRepository extends CrudRepository<Users, Long> {
 
-    
-
+    boolean existsByEmail(String email);
     
 } 
 

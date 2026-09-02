@@ -7,6 +7,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
+import com.banco.auth.validation.ExistsByEmail;
+
 @Entity
 @Table(name = "usuarios")
 @Data // Lombok genera los Getters y Setters automáticamente
@@ -22,6 +24,7 @@ public class Users {
     @NotBlank
     private String nombre;
 
+    @ExistsByEmail
     @Column(nullable = false, unique = true, length = 100)
     @NotBlank
     private String email;

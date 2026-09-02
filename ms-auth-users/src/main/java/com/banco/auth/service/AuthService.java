@@ -3,6 +3,6 @@ import com.banco.auth.model.Users;
 public interface AuthService{
 
     Users register(Users users);
-    String login(String username, String password);
+    String login(String email, String password);
 
 }

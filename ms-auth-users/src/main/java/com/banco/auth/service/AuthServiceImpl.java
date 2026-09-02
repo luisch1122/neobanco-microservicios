@@ -1,13 +1,12 @@
 package com.banco.auth.service;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
-
 import com.banco.auth.model.Users;
-
 import org.springframework.stereotype.Service;
 
 @Service
 public class AuthServiceImpl implements AuthService {
+
 
     private final UserService userService;
     private final PasswordEncoder passwordEncoder;
@@ -28,9 +27,8 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public String login(String username, String password) {
+    public String login(String email, String password) {
         // Implement the logic to authenticate a user and return a JWT token
         return null;
     }
-
 }
