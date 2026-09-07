@@ -1,15 +1,15 @@
 package com.banco.auth.config.filter;
 
 import java.io.IOException;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
-
-import javax.crypto.SecretKey;
 
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.userdetails.User;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 import com.banco.auth.model.Users;
@@ -22,15 +22,16 @@ import jakarta.servlet.http.HttpServletResponse;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 
+import static com.banco.auth.config.TokenJwtConfig.*;
+
 public class JwtAuthenticationFilter extends UsernamePasswordAuthenticationFilter {
 
     private AuthenticationManager authenticationManager;
 
-    private static final SecretKey SECRET_KEY = Jwts.SIG.HS256.key().build();
-
     public JwtAuthenticationFilter(AuthenticationManager authenticationManager) {
         
         this.authenticationManager = authenticationManager;
+        setFilterProcessesUrl("/auth/login");
     }
 
     @Override
@@ -60,14 +61,16 @@ public class JwtAuthenticationFilter extends UsernamePasswordAuthenticationFilte
     protected void successfulAuthentication(HttpServletRequest request, HttpServletResponse response, FilterChain chain,
             Authentication authResult) throws IOException, ServletException {
         
-        Users users = (Users) authResult.getPrincipal();
-        String email = users.getEmail();
+        User users = (User) authResult.getPrincipal();
+        String email = users.getUsername();
         String token = Jwts.builder()
                             .subject(email)
+                            .expiration(new Date(System.currentTimeMillis() + 3600000))
+                            .issuedAt(new Date())
                             .signWith(SECRET_KEY)
                             .compact();   
 
-        response.addHeader("Authorization", "Bearer " + token);
+        response.addHeader(HEADER_AUTHORIZATION, PREFIX_TOKEN + token);
 
         Map<String, String> body = new HashMap<>();
         body.put("token", token);
@@ -75,10 +78,23 @@ public class JwtAuthenticationFilter extends UsernamePasswordAuthenticationFilte
         body.put("message", String.format("Hola %s has iniciado sesion con exito! ", email));
 
         response.getWriter().write(new ObjectMapper().writeValueAsString(body));
-        response.setContentType("application/json");
+        response.setContentType(CONTENT_TYPE);
         response.setStatus(200);
     }
 
+    @Override
+    protected void unsuccessfulAuthentication(HttpServletRequest request, HttpServletResponse response,
+            AuthenticationException failed) throws IOException, ServletException {
+
+        Map<String, String> body = new HashMap<>();
+                
+        body.put("message", "Error en la autenciacion email o password incorrectos!");
+        body.put("error", failed.getMessage());
+
+        response.getWriter().write(new ObjectMapper().writeValueAsString(body));
+        response.setStatus(401);
+        response.setContentType(CONTENT_TYPE);
+    }
 
     
 }

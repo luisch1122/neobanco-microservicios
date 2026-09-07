@@ -25,10 +25,4 @@ public class AuthServiceImpl implements AuthService {
         
         return userService.save(users);
     }
-
-    @Override
-    public String login(String email, String password) {
-        // Implement the logic to authenticate a user and return a JWT token
-        return null;
-    }
 }
