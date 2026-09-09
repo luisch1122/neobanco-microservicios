@@ -1,6 +1,5 @@
 package com.banco.auth.config;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -15,8 +14,11 @@ import com.banco.auth.config.filter.JwtAuthenticationFilter;
 @Configuration
 public class SecurityConfig {
 
-    @Autowired 
     private AuthenticationConfiguration authenticationConfiguration;
+
+    public SecurityConfig(AuthenticationConfiguration authenticationConfiguration) {
+        this.authenticationConfiguration = authenticationConfiguration;
+    }
 
     @Bean
     AuthenticationManager authenticationManager() {

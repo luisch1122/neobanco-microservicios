@@ -7,7 +7,6 @@ import java.util.Map;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 
 import io.jsonwebtoken.Claims;
@@ -35,6 +34,7 @@ public class JwtValidationFilter extends BasicAuthenticationFilter{
         String header = request.getHeader(HEADER_AUTHORIZATION);
 
         if (header == null || !header.startsWith(PREFIX_TOKEN)) {
+            chain.doFilter(request, response);
             return;
         }
 
@@ -44,7 +44,7 @@ public class JwtValidationFilter extends BasicAuthenticationFilter{
             Claims claims = Jwts.parser().verifyWith(SECRET_KEY).build().parseSignedClaims(token).getPayload();
             String email = claims.getSubject();
             
-            UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(email, null);
+            UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(email, null, java.util.List.of());
             SecurityContextHolder .getContext().setAuthentication(authenticationToken);
             chain.doFilter(request, response);
         } catch (JwtException e) {
@@ -56,9 +56,5 @@ public class JwtValidationFilter extends BasicAuthenticationFilter{
             response.setStatus(401);
             response.setContentType(CONTENT_TYPE);
         }
-
     }
-
-    
-
 }
