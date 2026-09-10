@@ -47,22 +47,26 @@ paths:
               schema:
                 $ref: '#/components/schemas/UserResponse'
         '400':
-          description: Error de validación en los campos enviados
+          description: >
+            Error de validación en los campos enviados. También se devuelve
+            aquí (no como 409) cuando el email ya existe, ya que la
+            unicidad se valida como una regla de Bean Validation más sobre
+            el campo `email`.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ValidationErrorResponse'
               examples:
-                default:
+                camposVacios:
+                  summary: Campos obligatorios vacíos
                   value:
-                    email: "El campo email debe ser un correo válido"
+                    email: "El campo email no debe estar vacío"
                     nombre: "El campo nombre no debe estar vacío"
-        '409':
-          description: Ya existe un usuario registrado con ese email
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                    password: "El campo password no debe estar vacío"
+                emailDuplicado:
+                  summary: El email ya está registrado
+                  value:
+                    email: "Ya existe en la base de datos introduzca otro email"
 
   /auth/login:
     post:
@@ -70,8 +74,9 @@ paths:
       summary: Iniciar sesión
       description: >
         Valida las credenciales del usuario y, si son correctas, devuelve
-        un token JWT que debe enviarse como `Authorization: Bearer <token>`
-        en las peticiones a los demás microservicios.
+        un token JWT tanto en el cuerpo de la respuesta como en la
+        cabecera Authorization (con el prefijo Bearer), que debe
+        reenviarse en las peticiones a los demás microservicios.
       operationId: loginUser
       requestBody:
         required: true
@@ -87,18 +92,18 @@ paths:
       responses:
         '200':
           description: Autenticación exitosa
+          headers:
+            Authorization:
+              description: Token JWT con el prefijo Bearer
+              schema:
+                type: string
+                example: "Bearer eyJhbGciOiJIUzI1NiJ9...."
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/LoginResponse'
-        '400':
-          description: Error de validación en los campos enviados
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ValidationErrorResponse'
         '401':
-          description: Credenciales inválidas
+          description: Credenciales inválidas (email inexistente o password incorrecta)
           content:
             application/json:
               schema:
@@ -106,7 +111,8 @@ paths:
               examples:
                 default:
                   value:
-                    mensaje: "Credenciales inválidas"
+                    message: "Error en la autenticacion email o password incorrectos!"
+                    error: "Bad credentials"
 
 components:
   schemas:
@@ -133,6 +139,10 @@ components:
 
     UserResponse:
       type: object
+      description: >
+        Representación del usuario devuelta por /auth/register. Corresponde
+        directamente a la entidad JPA persistida, por lo que incluye el
+        hash de la contraseña (BCrypt), no la contraseña en texto plano.
       properties:
         id:
           type: integer
@@ -144,6 +154,10 @@ components:
         email:
           type: string
           example: "ana.perez@example.com"
+        password:
+          type: string
+          description: Hash BCrypt de la contraseña (nunca la contraseña original).
+          example: "$2a$10$abcdefghijklmnopqrstuv"
         estado:
           type: string
           enum: [ACTIVO, INACTIVO, BLOQUEADO]
@@ -171,16 +185,14 @@ components:
       properties:
         token:
           type: string
-          description: Token JWT firmado
+          description: Token JWT firmado (HS256), expira en 1 hora.
           example: "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhbmEucGVyZXpAZXhhbXBsZS5jb20ifQ.xxxx"
-        tokenType:
+        email:
           type: string
-          example: "Bearer"
-        expiresIn:
-          type: integer
-          format: int64
-          description: Tiempo de expiración del token en segundos
-          example: 3600
+          example: "ana.perez@example.com"
+        message:
+          type: string
+          example: "Hola ana.perez@example.com has iniciado sesion con exito!"
 
     ValidationErrorResponse:
       type: object
@@ -190,10 +202,18 @@ components:
 
     ErrorResponse:
       type: object
+      description: >
+        Formato de error usado tanto por /auth/login (credenciales
+        inválidas) como por la validación de JWT en rutas protegidas
+        (token ausente, expirado o manipulado).
       properties:
-        mensaje:
+        message:
           type: string
-          example: "Credenciales inválidas"
+          example: "El token JWT no es valido"
+        error:
+          type: string
+          description: Detalle técnico de la causa del error (mensaje de la excepción).
+          example: "JWT expired at 2026-09-10T10:00:00Z"
 
   securitySchemes:
     bearerAuth:

@@ -1,13 +1,21 @@
 package com.banco.auth.config;
 
+import java.util.Arrays;
+
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.Ordered;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.web.filter.CorsFilter;
 
 import com.banco.auth.config.filter.JwtAuthenticationFilter;
 
@@ -31,12 +39,27 @@ public class SecurityConfig {
         return http.authorizeHttpRequests( authz -> authz
         .requestMatchers(HttpMethod.POST, "/auth/register").permitAll()
         .anyRequest().authenticated())
+        .cors(cors -> cors.configurationSource(configurationSource()))
         .addFilter(new JwtAuthenticationFilter(authenticationManager()))
         .addFilter(new JwtValidationFilter(authenticationManager()))
         .csrf(config -> config.disable())
         .sessionManagement(management -> management.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .build();
 
+    }
+
+    @Bean
+    CorsConfigurationSource configurationSource(){
+        CorsConfiguration config = new CorsConfiguration();
+        config.setAllowedOrigins(Arrays.asList( "http://localhost:4200"));
+        config.setAllowedMethods(Arrays.asList("POST", "GET", "PUT", "DELETE"));
+        config.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type"));
+        config.setAllowCredentials(true);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", config);
+        
+        return source;
     }
 
 }
