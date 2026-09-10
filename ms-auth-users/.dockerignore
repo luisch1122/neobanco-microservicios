@@ -1,0 +1,8 @@
+target/
+.git/
+.gitignore
+.gitattributes
+.vscode/
+.github/
+HELP.md
+*.md
