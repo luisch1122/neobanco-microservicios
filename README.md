@@ -284,21 +284,40 @@ Las evidencias recomendadas son capturas del frontend, ejemplos de peticiones RE
 
 ## Hoja de ruta
 
-- [ ] Crear los proyectos base de los microservicios Java.
-- [ ] Definir los contratos REST con OpenAPI.
-- [ ] Implementar autenticación y autorización.
+- [x] Crear el proyecto base de `ms-auth-users` (Java 25, Spring Boot 4).
+- [x] Definir el contrato REST de `ms-auth-users` con OpenAPI (`ms-auth-users/openapi.yaml`).
+- [x] Implementar registro de usuarios (validación, email único, hash BCrypt).
+- [x] Implementar login por email y emisión de JWT.
+- [x] Implementar validación de JWT en rutas protegidas.
+- [x] Configurar CORS para el consumo desde el frontend Angular.
+- [x] Añadir pruebas unitarias y de integración de `ms-auth-users`.
+- [x] Automatizar build, pruebas y despliegue de `ms-auth-users` con GitHub Actions.
+- [ ] Iniciar el desarrollo del frontend Angular (consumo de registro/login).
+- [ ] Crear los proyectos base del resto de microservicios (`ms-cuentas`, `ms-transacciones`, `ms-notificaciones`, `ms-auditoria`).
+- [ ] Definir los contratos REST del resto de microservicios con OpenAPI.
+- [ ] Extraer una librería compartida de validación de JWT (`common-security`) para los microservicios consumidores.
+- [ ] Fijar la clave de firma JWT (`SECRET_KEY`) mediante configuración externa persistente.
 - [ ] Implementar cuentas, saldos y transferencias.
 - [ ] Añadir Redis para idempotencia.
 - [ ] Implementar Transactional Outbox y publicación en RabbitMQ.
 - [ ] Implementar notificaciones WebSocket.
 - [ ] Implementar auditoría y logs estructurados.
-- [ ] Añadir pruebas unitarias, de integración y de flujo completo.
-- [ ] Automatizar build, pruebas y despliegue con GitHub Actions.
+- [ ] Añadir pruebas de integración y de flujo completo entre microservicios.
 - [ ] Añadir observabilidad, backups y documentación operativa.
 
 ## Estado del proyecto
 
-Este repositorio se encuentra en la fase inicial de definición de arquitectura. El diagrama y este documento describen la solución objetivo; la implementación de los microservicios, la infraestructura local, los contratos y las pruebas se incorporarán progresivamente.
+El microservicio `ms-auth-users` es el primero en implementarse y ya cuenta con un flujo funcional de:
+
+- Registro de usuarios, con validación de campos y de email único.
+- Login por email con emisión de JWT (HS256) y expiración de 1 hora.
+- Validación de JWT en rutas protegidas mediante un filtro de Spring Security.
+- Configuración de CORS para permitir el consumo desde el frontend Angular.
+- Contrato OpenAPI documentado y sincronizado con el comportamiento real del servicio.
+- Cobertura de pruebas unitarias (servicios) y de integración (registro, login y validación de JWT) sobre una base de datos H2 en memoria.
+- Pipeline de CI/CD (`.github/workflows/deploy-auth.yml`) que valida la compilación en cada Pull Request y despliega en contenedor Docker al hacer merge a `main`.
+
+El resto de microservicios (`ms-cuentas`, `ms-transacciones`, `ms-notificaciones`, `ms-auditoria`), el frontend Angular y la librería compartida de seguridad (`common-security`) aún no se han creado. La infraestructura de las 3 VMs y las bases de datos ya están desplegadas y operativas.
 
 ## Aviso
 
