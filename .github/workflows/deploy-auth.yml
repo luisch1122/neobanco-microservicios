@@ -50,7 +50,10 @@ jobs:
 
       - name: 🔨 Compilar y Desplegar Contenedor
         working-directory: ./ms-auth-users
+        env:
+          JAVA_HOME: ""
         run: |
+          java -version
           bash mvnw -B clean package -DskipTests
           docker build -t ms-auth-users:latest .
           docker stop auth-container || true
