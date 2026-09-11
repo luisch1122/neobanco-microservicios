@@ -3,6 +3,7 @@ package com.banco.auth.service;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import com.banco.auth.model.Users;
 import org.springframework.stereotype.Service;
+import java.time.LocalDateTime;
 
 @Service
 public class AuthServiceImpl implements AuthService {
@@ -22,6 +23,13 @@ public class AuthServiceImpl implements AuthService {
         users.setPassword(
             passwordEncoder.encode(users.getPassword())
         );
+
+        if (users.getCreadoEn() == null) {
+            users.setCreadoEn(LocalDateTime.now());
+        }
+        if (users.getEstado() == null || users.getEstado().isBlank()) {
+            users.setEstado("ACTIVO");
+        }
         
         return userService.save(users);
     }
