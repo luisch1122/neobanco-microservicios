@@ -1,0 +1,42 @@
+﻿.auth-page {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  min-height: 100vh;
+  padding: 3rem 1rem;
+  background: #f4f6f8;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 380px;
+  padding: 1rem 0.5rem;
+}
+
+.full-width {
+  width: 100%;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.general-error {
+  color: #c0392b;
+  font-size: 0.85rem;
+  margin: 0 0 0.75rem;
+}
+
+.success-message {
+  color: #1e7e34;
+  font-size: 0.85rem;
+  margin: 0 0 0.75rem;
+}
+
+.auth-switch {
+  padding: 1rem;
+  text-align: center;
+  font-size: 0.85rem;
+
+  p {
+    margin: 0;
+  }
+}

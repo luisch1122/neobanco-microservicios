@@ -1,0 +1,17 @@
+﻿<mat-toolbar color="primary">
+  <span>NeoBanco</span>
+</mat-toolbar>
+
+<section class="home-page">
+  <mat-card>
+    <mat-card-header>
+      <mat-card-title>Bienvenido, {{ authService.email() }}</mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+      <p>Sesión iniciada correctamente. Esta es una pantalla de prueba protegida por el auth guard.</p>
+    </mat-card-content>
+    <mat-card-actions>
+      <button mat-flat-button color="warn" (click)="logout()">Cerrar sesión</button>
+    </mat-card-actions>
+  </mat-card>
+</section>
