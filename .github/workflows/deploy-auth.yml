@@ -41,9 +41,19 @@ jobs:
       - name: 📥 Clonar repositorio
         uses: actions/checkout@v5
 
+      - name: ☕ Configurar Java 25
+        uses: actions/setup-java@v5
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+          cache: maven
+
       - name: 🔨 Compilar y Desplegar Contenedor
         working-directory: ./ms-auth-users
+        env:
+          JAVA_HOME: ""
         run: |
+          java -version
           bash mvnw -B clean package -DskipTests
           docker build -t ms-auth-users:latest .
           docker stop auth-container || true
