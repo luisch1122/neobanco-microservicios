@@ -41,6 +41,13 @@ jobs:
       - name: 📥 Clonar repositorio
         uses: actions/checkout@v5
 
+      - name: ☕ Configurar Java 25
+        uses: actions/setup-java@v5
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+          cache: maven
+
       - name: 🔨 Compilar y Desplegar Contenedor
         working-directory: ./ms-auth-users
         run: |
