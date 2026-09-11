@@ -1,0 +1,225 @@
+openapi: 3.0.3
+info:
+  title: NeoBanco - MS Auth & Usuarios
+  description: >
+    Contrato REST del microservicio de autenticación y gestión de usuarios.
+    Expone el registro de usuarios y el inicio de sesión (login) que emite
+    un token JWT para las peticiones posteriores.
+  version: 0.1.0
+  contact:
+    name: NeoBanco Microservicios
+servers:
+  - url: http://localhost:8081
+    description: Instancia local del microservicio
+  - url: https://192.168.56.10/api/auth
+    description: A través del API Gateway (Nginx) en la VM de edge
+
+tags:
+  - name: Auth
+    description: Registro, autenticación y emisión de tokens
+
+paths:
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Registrar un nuevo usuario
+      description: >
+        Crea un usuario nuevo. La contraseña recibida en texto plano se
+        almacena únicamente como hash (BCrypt).
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRegisterRequest'
+            examples:
+              default:
+                value:
+                  nombre: "Ana Pérez"
+                  email: "ana.perez@example.com"
+                  password: "Sup3rSecreta!"
+      responses:
+        '201':
+          description: Usuario creado correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: >
+            Error de validación en los campos enviados. También se devuelve
+            aquí (no como 409) cuando el email ya existe, ya que la
+            unicidad se valida como una regla de Bean Validation más sobre
+            el campo `email`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                camposVacios:
+                  summary: Campos obligatorios vacíos
+                  value:
+                    email: "El campo email no debe estar vacío"
+                    nombre: "El campo nombre no debe estar vacío"
+                    password: "El campo password no debe estar vacío"
+                emailDuplicado:
+                  summary: El email ya está registrado
+                  value:
+                    email: "Ya existe en la base de datos introduzca otro email"
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Iniciar sesión
+      description: >
+        Valida las credenciales del usuario y, si son correctas, devuelve
+        un token JWT tanto en el cuerpo de la respuesta como en la
+        cabecera Authorization (con el prefijo Bearer), que debe
+        reenviarse en las peticiones a los demás microservicios.
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            examples:
+              default:
+                value:
+                  email: "ana.perez@example.com"
+                  password: "Sup3rSecreta!"
+      responses:
+        '200':
+          description: Autenticación exitosa
+          headers:
+            Authorization:
+              description: Token JWT con el prefijo Bearer
+              schema:
+                type: string
+                example: "Bearer eyJhbGciOiJIUzI1NiJ9...."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Credenciales inválidas (email inexistente o password incorrecta)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    message: "Error en la autenticacion email o password incorrectos!"
+                    error: "Bad credentials"
+
+components:
+  schemas:
+    UserRegisterRequest:
+      type: object
+      required: [nombre, email, password]
+      properties:
+        nombre:
+          type: string
+          example: "Ana Pérez"
+          minLength: 1
+          maxLength: 100
+        email:
+          type: string
+          format: email
+          example: "ana.perez@example.com"
+          maxLength: 100
+        password:
+          type: string
+          format: password
+          example: "Sup3rSecreta!"
+          minLength: 8
+          description: Contraseña en texto plano; el servicio la almacena como hash BCrypt.
+
+    UserResponse:
+      type: object
+      description: >
+        Representación del usuario devuelta por /auth/register. Corresponde
+        directamente a la entidad JPA persistida, por lo que incluye el
+        hash de la contraseña (BCrypt), no la contraseña en texto plano.
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        nombre:
+          type: string
+          example: "Ana Pérez"
+        email:
+          type: string
+          example: "ana.perez@example.com"
+        password:
+          type: string
+          description: Hash BCrypt de la contraseña (nunca la contraseña original).
+          example: "$2a$10$abcdefghijklmnopqrstuv"
+        estado:
+          type: string
+          enum: [ACTIVO, INACTIVO, BLOQUEADO]
+          example: "ACTIVO"
+        creadoEn:
+          type: string
+          format: date-time
+          example: "2026-08-28T10:15:30"
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          example: "ana.perez@example.com"
+        password:
+          type: string
+          format: password
+          example: "Sup3rSecreta!"
+
+    LoginResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          description: Token JWT firmado (HS256), expira en 1 hora.
+          example: "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhbmEucGVyZXpAZXhhbXBsZS5jb20ifQ.xxxx"
+        email:
+          type: string
+          example: "ana.perez@example.com"
+        message:
+          type: string
+          example: "Hola ana.perez@example.com has iniciado sesion con exito!"
+
+    ValidationErrorResponse:
+      type: object
+      description: Mapa de errores de validación, clave = nombre del campo, valor = mensaje
+      additionalProperties:
+        type: string
+
+    ErrorResponse:
+      type: object
+      description: >
+        Formato de error usado tanto por /auth/login (credenciales
+        inválidas) como por la validación de JWT en rutas protegidas
+        (token ausente, expirado o manipulado).
+      properties:
+        message:
+          type: string
+          example: "El token JWT no es valido"
+        error:
+          type: string
+          description: Detalle técnico de la causa del error (mensaje de la excepción).
+          example: "JWT expired at 2026-09-10T10:00:00Z"
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - bearerAuth: []
