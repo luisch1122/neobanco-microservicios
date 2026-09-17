@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.banco.auth.model.Users;
+import com.banco.auth.model.UsersRequest;
 import com.banco.auth.service.AuthService;
 import com.banco.auth.service.UserService;
 
@@ -20,6 +21,7 @@ import jakarta.validation.Valid;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
 
@@ -38,6 +40,7 @@ public class AuthController {
 
     @GetMapping("/me")
     public ResponseEntity<?> showAuthenticatedUser(Authentication authentication) {
+
         String email = authentication.getName();
 
         Optional<Users> userOptional = userService.findByEmail(email);
@@ -47,6 +50,28 @@ public class AuthController {
 
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(Collections.singletonMap("Error", "User not found"));
+
+    }
+
+    @PutMapping("/me")
+    public ResponseEntity<?> updateUsers(@Valid @RequestBody UsersRequest users, Authentication authentication) {
+
+        String email = authentication.getName();
+
+        try {
+            Optional<Users> userOptional = userService.update(users, email);
+
+            if (userOptional.isPresent()) {
+                return ResponseEntity.ok(toUserResponse(userOptional.orElseThrow()));
+            }
+
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Collections.singletonMap("Error", "User not found"));
+                    
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Collections.singletonMap("error", e.getMessage()));
+        }      
+
     }
 
 
