@@ -5,8 +5,9 @@ import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.banco.auth.dto.PasswordRequest;
+import com.banco.auth.dto.UsersRequest;
 import com.banco.auth.model.Users;
-import com.banco.auth.model.UsersRequest;
 import com.banco.auth.repository.UsersRepository;
 
 @Service
@@ -67,4 +68,11 @@ public class UserServiceImpl implements UserService {
 
     }
 
+    @Override 
+    @Transactional 
+    public Optional<Users> updatePassword(PasswordRequest pass, String email){
+
+        return null;
+
+    }
 }

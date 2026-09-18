@@ -1,7 +1,8 @@
 package com.banco.auth.service;
 
+import com.banco.auth.dto.PasswordRequest;
+import com.banco.auth.dto.UsersRequest;
 import com.banco.auth.model.Users;
-import com.banco.auth.model.UsersRequest;
 
 import java.util.Optional;
 
@@ -14,5 +15,7 @@ public interface UserService {
     Optional<Users> findByEmail(String email);
 
     Optional<Users> update(UsersRequest Users, String email);
+
+    Optional<Users> updatePassword(PasswordRequest pass, String email);
 
 }

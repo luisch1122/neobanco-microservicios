@@ -12,8 +12,8 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.banco.auth.dto.UsersRequest;
 import com.banco.auth.model.Users;
-import com.banco.auth.model.UsersRequest;
 import com.banco.auth.service.AuthService;
 import com.banco.auth.service.UserService;
 
@@ -72,6 +72,12 @@ public class AuthController {
             return ResponseEntity.badRequest().body(Collections.singletonMap("error", e.getMessage()));
         }      
 
+    }
+
+    @PutMapping("/me/password")
+    public ResponseEntity<?> updatePassword() {
+        
+        return null;
     }
 
 
