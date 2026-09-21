@@ -1,6 +1,5 @@
 package com.banco.auth.service;
 
-import com.banco.auth.dto.PasswordRequest;
 import com.banco.auth.dto.UsersRequest;
 import com.banco.auth.model.Users;
 

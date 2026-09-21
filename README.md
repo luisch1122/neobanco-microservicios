@@ -289,6 +289,7 @@ Las evidencias recomendadas son capturas del frontend, ejemplos de peticiones RE
 - [x] Implementar registro de usuarios (validación, email único, hash BCrypt).
 - [x] Implementar login por email y emisión de JWT.
 - [x] Implementar validación de JWT en rutas protegidas.
+- [x] Implementar gestión del perfil del usuario autenticado (`GET /auth/me`, `PUT /auth/me`, `PUT /auth/me/password`).
 - [x] Configurar CORS para el consumo desde el frontend Angular.
 - [x] Añadir pruebas unitarias y de integración de `ms-auth-users`.
 - [x] Automatizar build, pruebas y despliegue de `ms-auth-users` con GitHub Actions.
@@ -314,9 +315,14 @@ El microservicio `ms-auth-users` es el primero en implementarse y ya cuenta con 
 - Registro de usuarios, con validación de campos y de email único.
 - Login por email con emisión de JWT (HS256) y expiración de 1 hora.
 - Validación de JWT en rutas protegidas mediante un filtro de Spring Security.
+- Gestión del perfil del usuario autenticado: consulta (`GET /auth/me`),
+  actualización de nombre/email (`PUT /auth/me`, con validación de email
+  único) y cambio de contraseña (`PUT /auth/me/password`, con
+  verificación de la contraseña actual). No se implementan roles.
 - Configuración de CORS para permitir el consumo desde el frontend Angular.
 - Contrato OpenAPI documentado y sincronizado con el comportamiento real del servicio.
-- Cobertura de pruebas unitarias (servicios) y de integración (registro, login y validación de JWT) sobre una base de datos H2 en memoria.
+- Cobertura de pruebas unitarias (servicios) y de integración (registro, login,
+  validación de JWT y gestión de perfil/contraseña) sobre una base de datos H2 en memoria.
 - Pipeline de CI/CD (`.github/workflows/deploy-auth.yml`) que valida la compilación en cada Pull Request y despliega en contenedor Docker al hacer merge a `main`.
 
 El resto de microservicios (`ms-cuentas`, `ms-transacciones`, `ms-notificaciones`, `ms-auditoria`) y la librería compartida de seguridad (`common-security`) aún no se han creado. La infraestructura de las 3 VMs y las bases de datos ya están desplegadas y operativas.
