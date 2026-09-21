@@ -16,6 +16,4 @@ public interface UserService {
 
     Optional<Users> update(UsersRequest Users, String email);
 
-    Optional<Users> updatePassword(PasswordRequest pass, String email);
-
 }

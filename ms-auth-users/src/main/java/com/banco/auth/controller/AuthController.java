@@ -12,6 +12,7 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.banco.auth.dto.PasswordRequest;
 import com.banco.auth.dto.UsersRequest;
 import com.banco.auth.model.Users;
 import com.banco.auth.service.AuthService;
@@ -69,15 +70,34 @@ public class AuthController {
                     .body(Collections.singletonMap("Error", "User not found"));
                     
         } catch (IllegalArgumentException e) {
+
             return ResponseEntity.badRequest().body(Collections.singletonMap("error", e.getMessage()));
+
         }      
 
     }
 
     @PutMapping("/me/password")
-    public ResponseEntity<?> updatePassword() {
+    public ResponseEntity<?> updatePassword(@Valid @RequestBody PasswordRequest pass, Authentication authentication) {
         
-        return null;
+        String email = authentication.getName();
+
+        try {
+            Optional<Users> userOptional = authService.updatePassword(pass, email);
+
+            if (userOptional.isPresent()) {
+                return ResponseEntity.ok(toUserResponse(userOptional.orElseThrow()));
+            }
+
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Collections.singletonMap("Error", "User not found"));
+
+        } catch (IllegalArgumentException e) {
+
+            return ResponseEntity.badRequest().body(Collections.singletonMap("error", e.getMessage()));
+
+        }
+        
     }
 
 
