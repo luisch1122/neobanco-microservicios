@@ -292,7 +292,9 @@ Las evidencias recomendadas son capturas del frontend, ejemplos de peticiones RE
 - [x] Configurar CORS para el consumo desde el frontend Angular.
 - [x] Añadir pruebas unitarias y de integración de `ms-auth-users`.
 - [x] Automatizar build, pruebas y despliegue de `ms-auth-users` con GitHub Actions.
-- [ ] Iniciar el desarrollo del frontend Angular (consumo de registro/login).
+- [x] Iniciar el desarrollo del frontend Angular (proyecto base, Angular Material, registro/login/logout consumiendo `ms-auth-users`).
+- [x] Automatizar build y pruebas del frontend con GitHub Actions (`.github/workflows/deploy-frontend.yml`).
+- [ ] Desplegar el frontend en `vm-gateway` vía SSH/SCP desde el runner de `vm-backend` (job `deploy-to-gateway` pendiente).
 - [ ] Crear los proyectos base del resto de microservicios (`ms-cuentas`, `ms-transacciones`, `ms-notificaciones`, `ms-auditoria`).
 - [ ] Definir los contratos REST del resto de microservicios con OpenAPI.
 - [ ] Extraer una librería compartida de validación de JWT (`common-security`) para los microservicios consumidores.
@@ -317,7 +319,16 @@ El microservicio `ms-auth-users` es el primero en implementarse y ya cuenta con 
 - Cobertura de pruebas unitarias (servicios) y de integración (registro, login y validación de JWT) sobre una base de datos H2 en memoria.
 - Pipeline de CI/CD (`.github/workflows/deploy-auth.yml`) que valida la compilación en cada Pull Request y despliega en contenedor Docker al hacer merge a `main`.
 
-El resto de microservicios (`ms-cuentas`, `ms-transacciones`, `ms-notificaciones`, `ms-auditoria`), el frontend Angular y la librería compartida de seguridad (`common-security`) aún no se han creado. La infraestructura de las 3 VMs y las bases de datos ya están desplegadas y operativas.
+El resto de microservicios (`ms-cuentas`, `ms-transacciones`, `ms-notificaciones`, `ms-auditoria`) y la librería compartida de seguridad (`common-security`) aún no se han creado. La infraestructura de las 3 VMs y las bases de datos ya están desplegadas y operativas.
+
+El frontend Angular (`frontend/`) ya cuenta con:
+
+- Proyecto base en Angular 22 con Angular Material (tema M3) y animaciones.
+- Formularios reactivos de registro y login, con manejo de errores de validación devueltos por el backend.
+- Servicio de autenticación (`AuthService`) basado en signals, con persistencia de token/email en `localStorage`.
+- Interceptor HTTP que adjunta el JWT a las peticiones salientes (excluyendo `/auth/register` y `/auth/login`) y guard de rutas que protege vistas autenticadas.
+- Flujo completo validado manualmente en `ng serve` contra el backend real de `ms-auth-users` (registro, login y acceso a una vista protegida).
+- Pipeline de CI (`.github/workflows/deploy-frontend.yml`) que instala dependencias, corre pruebas unitarias y verifica el build en cada Pull Request; el despliegue automático a `vm-gateway` (Nginx) queda pendiente de configurar acceso SSH desde el runner de `vm-backend`.
 
 ## Aviso
 
