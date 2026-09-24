@@ -3,7 +3,15 @@ import { HttpClient, HttpResponse } from '@angular/common/http';
 import { Observable, tap } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
-import { LoginRequest, LoginResponse, RegisterRequest, RegisterResponse } from '../models/auth.models';
+import {
+  LoginRequest,
+  LoginResponse,
+  PasswordUpdateRequest,
+  RegisterRequest,
+  RegisterResponse,
+  UserProfileResponse,
+  UserUpdateRequest
+} from '../models/auth.models';
 
 const TOKEN_STORAGE_KEY = 'neobanco.auth.token';
 const EMAIL_STORAGE_KEY = 'neobanco.auth.email';
@@ -48,6 +56,38 @@ export class AuthService {
           }
         })
       );
+  }
+
+  /**
+   * Obtiene el perfil del usuario autenticado (deriva la identidad del
+   * token, nunca de un parametro del cliente).
+   */
+  getMe(): Observable<UserProfileResponse> {
+    return this.http.get<UserProfileResponse>(`${this.apiUrl}/auth/me`);
+  }
+
+  /**
+   * Actualiza nombre/email del usuario autenticado. Si el email cambia,
+   * se sincroniza en el estado local para que siga usandose en el header
+   * Authorization y en la UI.
+   */
+  updateMe(request: UserUpdateRequest): Observable<UserProfileResponse> {
+    return this.http.put<UserProfileResponse>(`${this.apiUrl}/auth/me`, request).pipe(
+      tap((profile) => {
+        if (this.emailSignal() !== null) {
+          localStorage.setItem(EMAIL_STORAGE_KEY, profile.email);
+          this.emailSignal.set(profile.email);
+        }
+      })
+    );
+  }
+
+  /**
+   * Cambia la contraseña del usuario autenticado. No cierra la sesion:
+   * el token actual sigue siendo valido hasta que expire.
+   */
+  updatePassword(request: PasswordUpdateRequest): Observable<UserProfileResponse> {
+    return this.http.put<UserProfileResponse>(`${this.apiUrl}/auth/me/password`, request);
   }
 
   logout(): void {

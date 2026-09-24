@@ -47,3 +47,34 @@ export interface AuthErrorResponse {
   message: string;
   error?: string;
 }
+
+/**
+ * Perfil del usuario autenticado devuelto por GET/PUT /auth/me y por
+ * PUT /auth/me/password. Nunca incluye la contraseña.
+ */
+export interface UserProfileResponse {
+  id: number;
+  nombre: string;
+  email: string;
+  estado: 'ACTIVO' | 'INACTIVO' | 'BLOQUEADO';
+  creadoEn: string;
+}
+
+export interface UserUpdateRequest {
+  nombre: string;
+  email: string;
+}
+
+export interface PasswordUpdateRequest {
+  currentPassword: string;
+  newPassword: string;
+}
+
+/**
+ * Error de negocio devuelto por PUT /auth/me y PUT /auth/me/password
+ * (400): email duplicado, contraseña actual incorrecta, etc. El backend
+ * usa la clave `error` en minúscula para estos casos.
+ */
+export interface GenericErrorResponse {
+  error: string;
+}

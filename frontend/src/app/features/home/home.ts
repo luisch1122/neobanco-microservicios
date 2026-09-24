@@ -19,6 +19,10 @@ export class Home {
     private readonly router: Router
   ) {}
 
+  goToProfile(): void {
+    this.router.navigate(['/profile']);
+  }
+
   logout(): void {
     this.authService.logout();
     this.router.navigate(['/login']);
