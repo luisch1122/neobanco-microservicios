@@ -4,6 +4,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -170,7 +171,7 @@ class AuthIntegrationTest {
     }
 
     @Test
-    void rutaProtegida_conTokenValido_pasaLaAutenticacion() throws Exception {
+    void rutaProtegida_conTokenValido_pasaLaAutenticacionYLlegaAlEndpointDeNegocio() throws Exception {
         String email = randomEmail();
 
         mockMvc.perform(post("/auth/register")
@@ -186,11 +187,148 @@ class AuthIntegrationTest {
                 .getResponse()
                 .getHeader("Authorization");
 
-        // No existe (aun) un endpoint de negocio protegido, por lo que un token
-        // valido debe llegar hasta el DispatcherServlet y recibir 404 (ruta no
-        // mapeada) en lugar de 401/403 (bloqueado por seguridad).
-        mockMvc.perform(get("/auth/perfil")
+        // Un token valido debe llegar hasta el endpoint de negocio protegido
+        // (/auth/me) y devolver 200 con el perfil del usuario autenticado.
+        mockMvc.perform(get("/auth/me")
                 .header("Authorization", loginResponse))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value(email));
+    }
+
+    // ---------------------------------------------------------------
+    // /auth/me (GET, PUT) y /auth/me/password (PUT)
+    // ---------------------------------------------------------------
+
+    private String updateProfileRequestBody(String nombre, String email) {
+        return """
+                {
+                  "nombre": "%s",
+                  "email": "%s"
+                }
+                """.formatted(nombre, email);
+    }
+
+    private String updatePasswordRequestBody(String currentPassword, String newPassword) {
+        return """
+                {
+                  "currentPassword": "%s",
+                  "newPassword": "%s"
+                }
+                """.formatted(currentPassword, newPassword);
+    }
+
+    /** Registra y loguea un usuario nuevo, devolviendo su email y el header Authorization (con el prefijo Bearer). */
+    private String[] registrarYLoguear(String email) throws Exception {
+        mockMvc.perform(post("/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(registerRequestBody("Ana Perez", email, PASSWORD)))
+                .andExpect(status().isCreated());
+
+        String authorizationHeader = mockMvc.perform(post("/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(loginRequestBody(email, PASSWORD)))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getHeader("Authorization");
+
+        return new String[] { email, authorizationHeader };
+    }
+
+    @Test
+    void getMe_conTokenValido_devuelvePerfilSinExponerLaContrasena() throws Exception {
+        String email = randomEmail();
+        String authorization = registrarYLoguear(email)[1];
+
+        mockMvc.perform(get("/auth/me")
+                .header("Authorization", authorization))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value(email))
+                .andExpect(jsonPath("$.password").doesNotExist());
+    }
+
+    @Test
+    void putMe_conDatosValidos_actualizaNombreYEmail() throws Exception {
+        String email = randomEmail();
+        String authorization = registrarYLoguear(email)[1];
+        String nuevoEmail = randomEmail();
+
+        mockMvc.perform(put("/auth/me")
+                .header("Authorization", authorization)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(updateProfileRequestBody("Ana Perez Actualizada", nuevoEmail)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nombre").value("Ana Perez Actualizada"))
+                .andExpect(jsonPath("$.email").value(nuevoEmail))
+                .andExpect(jsonPath("$.password").doesNotExist());
+    }
+
+    @Test
+    void putMe_conEmailYaUsadoPorOtroUsuario_devuelve400() throws Exception {
+        String emailA = randomEmail();
+        String emailB = randomEmail();
+
+        String authorizationA = registrarYLoguear(emailA)[1];
+        registrarYLoguear(emailB);
+
+        mockMvc.perform(put("/auth/me")
+                .header("Authorization", authorizationA)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(updateProfileRequestBody("Ana Perez", emailB)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").exists());
+    }
+
+    @Test
+    void putMePassword_conContrasenaActualCorrecta_actualizaLaContrasena() throws Exception {
+        String email = randomEmail();
+        String authorization = registrarYLoguear(email)[1];
+        String nuevaPassword = "NuevaSup3rSecreta!";
+
+        mockMvc.perform(put("/auth/me/password")
+                .header("Authorization", authorization)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(updatePasswordRequestBody(PASSWORD, nuevaPassword)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.password").doesNotExist());
+
+        // El login con la contrasena anterior ya no debe funcionar...
+        mockMvc.perform(post("/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(loginRequestBody(email, PASSWORD)))
+                .andExpect(status().isUnauthorized());
+
+        // ...y el login con la nueva contrasena si debe funcionar.
+        mockMvc.perform(post("/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(loginRequestBody(email, nuevaPassword)))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void putMePassword_conContrasenaActualIncorrecta_devuelve400() throws Exception {
+        String email = randomEmail();
+        String authorization = registrarYLoguear(email)[1];
+
+        mockMvc.perform(put("/auth/me/password")
+                .header("Authorization", authorization)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(updatePasswordRequestBody("contrasena-incorrecta", "NuevaSup3rSecreta!")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("La contraseña actual no es correcta"));
+    }
+
+    @Test
+    void putMePassword_conNuevaContrasenaIgualALaActual_devuelve400() throws Exception {
+        String email = randomEmail();
+        String authorization = registrarYLoguear(email)[1];
+
+        mockMvc.perform(put("/auth/me/password")
+                .header("Authorization", authorization)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(updatePasswordRequestBody(PASSWORD, PASSWORD)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("La nueva contraseña debe ser diferente a la actual"));
     }
 }
+

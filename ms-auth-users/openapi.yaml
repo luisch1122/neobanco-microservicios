@@ -17,6 +17,8 @@ servers:
 tags:
   - name: Auth
     description: Registro, autenticación y emisión de tokens
+  - name: Usuarios
+    description: Consulta y gestión del perfil del usuario autenticado
 
 paths:
   /auth/register:
@@ -114,6 +116,152 @@ paths:
                     message: "Error en la autenticacion email o password incorrectos!"
                     error: "Bad credentials"
 
+  /auth/me:
+    get:
+      tags: [Usuarios]
+      summary: Consultar el perfil del usuario autenticado
+      description: >
+        Devuelve los datos del usuario propietario del token JWT enviado
+        en la cabecera Authorization. No expone el hash de la contraseña.
+      operationId: getAuthenticatedUser
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Perfil del usuario autenticado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileResponse'
+        '401':
+          description: Token JWT ausente, inválido o expirado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: >
+            El usuario asociado al token ya no existe (caso extremo, por
+            ejemplo si fue eliminado tras emitirse el token)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericErrorResponse'
+
+    put:
+      tags: [Usuarios]
+      summary: Actualizar nombre y/o email del usuario autenticado
+      description: >
+        Actualiza el nombre y el email del usuario propietario del token
+        JWT. Si el email cambia, se valida que no esté en uso por otro
+        usuario.
+      operationId: updateAuthenticatedUser
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpdateRequest'
+            examples:
+              default:
+                value:
+                  nombre: "Ana Pérez Gómez"
+                  email: "ana.perez.gomez@example.com"
+      responses:
+        '200':
+          description: Perfil actualizado correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileResponse'
+        '400':
+          description: >
+            Error de validación en los campos enviados, o el email ya
+            está en uso por otro usuario
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericErrorResponse'
+              examples:
+                emailEnUso:
+                  summary: El email ya está en uso por otro usuario
+                  value:
+                    error: "El email ya está en uso por otro usuario"
+        '401':
+          description: Token JWT ausente, inválido o expirado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: El usuario asociado al token ya no existe
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericErrorResponse'
+
+  /auth/me/password:
+    put:
+      tags: [Usuarios]
+      summary: Cambiar la contraseña del usuario autenticado
+      description: >
+        Cambia la contraseña del usuario propietario del token JWT. Exige
+        la contraseña actual y no permite que la nueva contraseña sea
+        igual a la actual.
+      operationId: updateAuthenticatedUserPassword
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordUpdateRequest'
+            examples:
+              default:
+                value:
+                  currentPassword: "Sup3rSecreta!"
+                  newPassword: "NuevaSup3rSecreta!"
+      responses:
+        '200':
+          description: Contraseña actualizada correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileResponse'
+        '400':
+          description: >
+            Error de validación en los campos enviados, la contraseña
+            actual no es correcta, o la nueva contraseña es igual a la
+            actual
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericErrorResponse'
+              examples:
+                contrasenaActualIncorrecta:
+                  summary: La contraseña actual no es correcta
+                  value:
+                    error: "La contraseña actual no es correcta"
+                nuevaIgualALaActual:
+                  summary: La nueva contraseña es igual a la actual
+                  value:
+                    error: "La nueva contraseña debe ser diferente a la actual"
+        '401':
+          description: Token JWT ausente, inválido o expirado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: El usuario asociado al token ya no existe
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericErrorResponse'
+
 components:
   schemas:
     UserRegisterRequest:
@@ -167,6 +315,60 @@ components:
           format: date-time
           example: "2026-08-28T10:15:30"
 
+    UserProfileResponse:
+      type: object
+      description: >
+        Perfil del usuario devuelto por /auth/me, /auth/me (PUT) y
+        /auth/me/password. A diferencia de UserResponse, no expone el
+        hash de la contraseña.
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        nombre:
+          type: string
+          example: "Ana Pérez"
+        email:
+          type: string
+          example: "ana.perez@example.com"
+        estado:
+          type: string
+          enum: [ACTIVO, INACTIVO, BLOQUEADO]
+          example: "ACTIVO"
+        creadoEn:
+          type: string
+          format: date-time
+          example: "2026-08-28T10:15:30"
+
+    UserUpdateRequest:
+      type: object
+      required: [nombre, email]
+      properties:
+        nombre:
+          type: string
+          example: "Ana Pérez Gómez"
+          minLength: 1
+        email:
+          type: string
+          format: email
+          example: "ana.perez.gomez@example.com"
+
+    PasswordUpdateRequest:
+      type: object
+      required: [currentPassword, newPassword]
+      properties:
+        currentPassword:
+          type: string
+          format: password
+          example: "Sup3rSecreta!"
+        newPassword:
+          type: string
+          format: password
+          example: "NuevaSup3rSecreta!"
+          minLength: 8
+          description: Debe ser diferente a la contraseña actual.
+
     LoginRequest:
       type: object
       required: [email, password]
@@ -214,6 +416,22 @@ components:
           type: string
           description: Detalle técnico de la causa del error (mensaje de la excepción).
           example: "JWT expired at 2026-09-10T10:00:00Z"
+
+    GenericErrorResponse:
+      type: object
+      description: >
+        Formato simple de error usado por los endpoints de gestión de
+        usuarios (/auth/me, /auth/me/password). Los errores de negocio
+        (400: email en uso, contraseña incorrecta) usan la clave en
+        minúscula `error`; el caso 404 (usuario no encontrado) usa la
+        clave `Error` con mayúscula inicial, tal como lo devuelve el
+        controlador actualmente.
+      properties:
+        error:
+          type: string
+          example: "El email ya está en uso por otro usuario"
+      additionalProperties:
+        type: string
 
   securitySchemes:
     bearerAuth:
