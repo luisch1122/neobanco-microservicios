@@ -11,6 +11,7 @@
       <p>Sesión iniciada correctamente. Esta es una pantalla de prueba protegida por el auth guard.</p>
     </mat-card-content>
     <mat-card-actions>
+      <button mat-flat-button color="primary" (click)="goToProfile()">Mis datos</button>
       <button mat-flat-button color="warn" (click)="logout()">Cerrar sesión</button>
     </mat-card-actions>
   </mat-card>

@@ -1,0 +1,105 @@
+﻿<mat-toolbar color="primary">
+  <span>NeoBanco</span>
+</mat-toolbar>
+
+<section class="profile-page">
+  @if (loadingProfile()) {
+    <div class="loading-container">
+      <mat-spinner diameter="32"></mat-spinner>
+    </div>
+  } @else if (loadError()) {
+    <mat-card class="profile-card">
+      <mat-card-content>
+        <p class="general-error">{{ loadError() }}</p>
+      </mat-card-content>
+    </mat-card>
+  } @else {
+    <mat-card class="profile-card">
+      <mat-card-header>
+        <mat-card-title>Mis datos</mat-card-title>
+      </mat-card-header>
+
+      <mat-card-content>
+        <form [formGroup]="profileForm" (ngSubmit)="submitProfile()" novalidate>
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Nombre</mat-label>
+            <input matInput type="text" formControlName="nombre" autocomplete="name" />
+            @if (profileForm.get('nombre')?.hasError('required')) {
+              <mat-error>El nombre es obligatorio.</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Email</mat-label>
+            <input matInput type="email" formControlName="email" autocomplete="email" />
+            @if (profileForm.get('email')?.hasError('email')) {
+              <mat-error>Ingresa un email válido.</mat-error>
+            } @else if (profileForm.get('email')?.hasError('required')) {
+              <mat-error>El email es obligatorio.</mat-error>
+            }
+          </mat-form-field>
+
+          @if (profileSuccess()) {
+            <p class="success-message">{{ profileSuccess() }}</p>
+          }
+          @if (profileError()) {
+            <p class="general-error">{{ profileError() }}</p>
+          }
+
+          <button mat-flat-button color="primary" type="submit" class="full-width" [disabled]="profileSubmitting()">
+            @if (profileSubmitting()) {
+              <mat-spinner diameter="20"></mat-spinner>
+            } @else {
+              Guardar cambios
+            }
+          </button>
+        </form>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="profile-card">
+      <mat-card-header>
+        <mat-card-title>Cambiar contraseña</mat-card-title>
+      </mat-card-header>
+
+      <mat-card-content>
+        <form [formGroup]="passwordForm" (ngSubmit)="submitPassword()" novalidate>
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Contraseña actual</mat-label>
+            <input matInput type="password" formControlName="currentPassword" autocomplete="current-password" />
+            @if (passwordForm.get('currentPassword')?.hasError('required')) {
+              <mat-error>La contraseña actual es obligatoria.</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Nueva contraseña</mat-label>
+            <input matInput type="password" formControlName="newPassword" autocomplete="new-password" />
+            @if (passwordForm.get('newPassword')?.hasError('minlength')) {
+              <mat-error>La nueva contraseña debe tener al menos 8 caracteres.</mat-error>
+            } @else if (passwordForm.get('newPassword')?.hasError('required')) {
+              <mat-error>La nueva contraseña es obligatoria.</mat-error>
+            }
+          </mat-form-field>
+
+          @if (passwordSuccess()) {
+            <p class="success-message">{{ passwordSuccess() }}</p>
+          }
+          @if (passwordError()) {
+            <p class="general-error">{{ passwordError() }}</p>
+          }
+
+          <button mat-flat-button color="primary" type="submit" class="full-width" [disabled]="passwordSubmitting()">
+            @if (passwordSubmitting()) {
+              <mat-spinner diameter="20"></mat-spinner>
+            } @else {
+              Cambiar contraseña
+            }
+          </button>
+        </form>
+      </mat-card-content>
+    </mat-card>
+  }
+
+  <button mat-stroked-button class="full-width back-button" (click)="goHome()">Volver al inicio</button>
+</section>

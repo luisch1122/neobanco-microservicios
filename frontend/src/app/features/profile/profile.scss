@@ -1,0 +1,40 @@
+﻿.profile-page {
+  max-width: 480px;
+  margin: 3rem auto;
+  padding: 0 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.profile-card {
+  padding: 1rem 0.5rem;
+}
+
+.loading-container {
+  display: flex;
+  justify-content: center;
+  padding: 3rem 0;
+}
+
+.full-width {
+  width: 100%;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.general-error {
+  color: #c0392b;
+  font-size: 0.85rem;
+  margin: 0 0 0.75rem;
+}
+
+.success-message {
+  color: #1e7e34;
+  font-size: 0.85rem;
+  margin: 0 0 0.75rem;
+}
+
+.back-button {
+  margin-bottom: 1rem;
+}
