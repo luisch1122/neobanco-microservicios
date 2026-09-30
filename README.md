@@ -294,8 +294,11 @@ Las evidencias recomendadas son capturas del frontend, ejemplos de peticiones RE
 - [x] Añadir pruebas unitarias y de integración de `ms-auth-users`.
 - [x] Automatizar build, pruebas y despliegue de `ms-auth-users` con GitHub Actions.
 - [x] Iniciar el desarrollo del frontend Angular (proyecto base, Angular Material, registro/login/logout consumiendo `ms-auth-users`).
+- [x] Implementar en el frontend la gestión de perfil del usuario autenticado (`/profile`: actualizar datos y cambiar contraseña).
 - [x] Automatizar build y pruebas del frontend con GitHub Actions (`.github/workflows/deploy-frontend.yml`).
-- [ ] Desplegar el frontend en `vm-gateway` vía SSH/SCP desde el runner de `vm-backend` (job `deploy-to-gateway` pendiente).
+- [x] Configurar Nginx en `vm-gateway` como reverse proxy y servidor de estáticos (`gateway/nginx/neobanco.conf`).
+- [x] Desplegar el frontend en `vm-gateway` vía SSH/SCP desde el runner de `vm-backend` (job `deploy-to-gateway`).
+- [ ] Externalizar `SECRET_KEY` del JWT (`TokenJwtConfig`) a variable de entorno.
 - [ ] Crear los proyectos base del resto de microservicios (`ms-cuentas`, `ms-transacciones`, `ms-notificaciones`, `ms-auditoria`).
 - [ ] Definir los contratos REST del resto de microservicios con OpenAPI.
 - [ ] Extraer una librería compartida de validación de JWT (`common-security`) para los microservicios consumidores.
@@ -334,7 +337,10 @@ El frontend Angular (`frontend/`) ya cuenta con:
 - Servicio de autenticación (`AuthService`) basado en signals, con persistencia de token/email en `localStorage`.
 - Interceptor HTTP que adjunta el JWT a las peticiones salientes (excluyendo `/auth/register` y `/auth/login`) y guard de rutas que protege vistas autenticadas.
 - Flujo completo validado manualmente en `ng serve` contra el backend real de `ms-auth-users` (registro, login y acceso a una vista protegida).
-- Pipeline de CI (`.github/workflows/deploy-frontend.yml`) que instala dependencias, corre pruebas unitarias y verifica el build en cada Pull Request; el despliegue automático a `vm-gateway` (Nginx) queda pendiente de configurar acceso SSH desde el runner de `vm-backend`.
+- Sección de perfil (`/profile`) para actualizar nombre/email y cambiar la contraseña, consumiendo `GET/PUT /auth/me` y `PUT /auth/me/password`.
+- Pipeline de CI/CD (`.github/workflows/deploy-frontend.yml`) que instala dependencias, corre pruebas unitarias y verifica el build en cada Pull Request, y despliega el build de producción a `vm-gateway` vía SSH/SCP al hacer merge a `main`.
+
+`vm-gateway` cuenta con Nginx configurado (`gateway/nginx/neobanco.conf`) como reverse proxy hacia `ms-auth-users` (`/api/` → `vm-backend:8080`) y servidor de los archivos estáticos del frontend.
 
 ## Aviso
 
