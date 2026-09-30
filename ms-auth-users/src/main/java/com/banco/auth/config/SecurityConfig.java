@@ -2,6 +2,9 @@ package com.banco.auth.config;
 
 import java.util.Arrays;
 
+import javax.crypto.SecretKey;
+
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -16,10 +19,16 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import com.banco.auth.config.filter.JwtAuthenticationFilter;
 
+import io.jsonwebtoken.io.Decoders;
+import io.jsonwebtoken.security.Keys;
+
 @Configuration
 public class SecurityConfig {
 
     private AuthenticationConfiguration authenticationConfiguration;
+
+    @Value("${jwt.secret}")
+    private String jwtSecret;
 
     public SecurityConfig(AuthenticationConfiguration authenticationConfiguration) {
         this.authenticationConfiguration = authenticationConfiguration;
@@ -30,6 +39,17 @@ public class SecurityConfig {
         return authenticationConfiguration.getAuthenticationManager();
     }
 
+    /**
+     * Clave HS256 derivada de jwt.secret (Base64), compartida por el
+     * filtro de emision (login) y el de validacion de JWT. Se lee de
+     * una variable de entorno en produccion (ver application.properties).
+     */
+    @Bean
+    SecretKey jwtSecretKey() {
+        return Keys.hmacShaKeyFor(Decoders.BASE64.decode(jwtSecret));
+    }
+    
+
     @Bean
     SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 
@@ -37,8 +57,8 @@ public class SecurityConfig {
         .requestMatchers(HttpMethod.POST, "/auth/register").permitAll()
         .anyRequest().authenticated())
         .cors(cors -> cors.configurationSource(configurationSource()))
-        .addFilter(new JwtAuthenticationFilter(authenticationManager()))
-        .addFilter(new JwtValidationFilter(authenticationManager()))
+        .addFilter(new JwtAuthenticationFilter(authenticationManager(), jwtSecretKey()))
+        .addFilter(new JwtValidationFilter(authenticationManager(), jwtSecretKey()))
         .csrf(config -> config.disable())
         .sessionManagement(management -> management.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .build();

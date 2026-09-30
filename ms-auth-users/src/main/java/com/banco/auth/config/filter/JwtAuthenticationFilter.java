@@ -5,6 +5,8 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
+import javax.crypto.SecretKey;
+
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -27,10 +29,12 @@ import static com.banco.auth.config.TokenJwtConfig.*;
 public class JwtAuthenticationFilter extends UsernamePasswordAuthenticationFilter {
 
     private AuthenticationManager authenticationManager;
+    private final SecretKey secretKey;
 
-    public JwtAuthenticationFilter(AuthenticationManager authenticationManager) {
-        
+    public JwtAuthenticationFilter(AuthenticationManager authenticationManager, SecretKey secretKey) {
+
         this.authenticationManager = authenticationManager;
+        this.secretKey = secretKey;
         setFilterProcessesUrl("/auth/login");
     }
 
@@ -67,7 +71,7 @@ public class JwtAuthenticationFilter extends UsernamePasswordAuthenticationFilte
                             .subject(email)
                             .expiration(new Date(System.currentTimeMillis() + 3600000))
                             .issuedAt(new Date())
-                            .signWith(SECRET_KEY)
+                            .signWith(secretKey)
                             .compact();   
 
         response.addHeader(HEADER_AUTHORIZATION, PREFIX_TOKEN + token);
