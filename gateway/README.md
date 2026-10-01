@@ -7,7 +7,7 @@ archivos estáticos del frontend Angular.
 
 - `nginx/neobanco.conf`: configuración del `server` de Nginx (sirve
   `frontend/dist/frontend/browser` y hace proxy de `/api/` hacia
-  `ms-auth-users` en `vm-backend:8080`).
+  `ms-auth-users` en `vm-backend:8081`).
 
 ## Instalación manual (primera vez en vm-gateway)
 

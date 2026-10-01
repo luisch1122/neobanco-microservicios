@@ -62,4 +62,5 @@ jobs:
             --name auth-container \
             -p 8081:8080 \
             --restart unless-stopped \
+            -e JWT_SECRET="${{ secrets.JWT_SECRET }}" \
             ms-auth-users:latest

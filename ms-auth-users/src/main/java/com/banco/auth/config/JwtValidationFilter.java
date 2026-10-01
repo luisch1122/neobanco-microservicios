@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
+import javax.crypto.SecretKey;
+
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -23,8 +25,11 @@ import static com.banco.auth.config.TokenJwtConfig.*;
 
 public class JwtValidationFilter extends BasicAuthenticationFilter{
 
-    public JwtValidationFilter(AuthenticationManager authenticationManager) {
+    private final SecretKey secretKey;
+
+    public JwtValidationFilter(AuthenticationManager authenticationManager, SecretKey secretKey) {
         super(authenticationManager);
+        this.secretKey = secretKey;
     }
 
     @Override
@@ -41,7 +46,7 @@ public class JwtValidationFilter extends BasicAuthenticationFilter{
         String token = header.replace(PREFIX_TOKEN, "");
 
         try {
-            Claims claims = Jwts.parser().verifyWith(SECRET_KEY).build().parseSignedClaims(token).getPayload();
+            Claims claims = Jwts.parser().verifyWith(secretKey).build().parseSignedClaims(token).getPayload();
             String email = claims.getSubject();
             
             UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(email, null, java.util.List.of());

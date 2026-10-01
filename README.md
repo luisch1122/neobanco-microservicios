@@ -298,11 +298,10 @@ Las evidencias recomendadas son capturas del frontend, ejemplos de peticiones RE
 - [x] Automatizar build y pruebas del frontend con GitHub Actions (`.github/workflows/deploy-frontend.yml`).
 - [x] Configurar Nginx en `vm-gateway` como reverse proxy y servidor de estáticos (`gateway/nginx/neobanco.conf`).
 - [x] Desplegar el frontend en `vm-gateway` vía SSH/SCP desde el runner de `vm-backend` (job `deploy-to-gateway`).
-- [ ] Externalizar `SECRET_KEY` del JWT (`TokenJwtConfig`) a variable de entorno.
+- [x] Externalizar `SECRET_KEY` del JWT (`TokenJwtConfig`) a variable de entorno (`jwt.secret` / secreto `JWT_SECRET` en GitHub Actions).
 - [ ] Crear los proyectos base del resto de microservicios (`ms-cuentas`, `ms-transacciones`, `ms-notificaciones`, `ms-auditoria`).
 - [ ] Definir los contratos REST del resto de microservicios con OpenAPI.
 - [ ] Extraer una librería compartida de validación de JWT (`common-security`) para los microservicios consumidores.
-- [ ] Fijar la clave de firma JWT (`SECRET_KEY`) mediante configuración externa persistente.
 - [ ] Implementar cuentas, saldos y transferencias.
 - [ ] Añadir Redis para idempotencia.
 - [ ] Implementar Transactional Outbox y publicación en RabbitMQ.
@@ -340,7 +339,7 @@ El frontend Angular (`frontend/`) ya cuenta con:
 - Sección de perfil (`/profile`) para actualizar nombre/email y cambiar la contraseña, consumiendo `GET/PUT /auth/me` y `PUT /auth/me/password`.
 - Pipeline de CI/CD (`.github/workflows/deploy-frontend.yml`) que instala dependencias, corre pruebas unitarias y verifica el build en cada Pull Request, y despliega el build de producción a `vm-gateway` vía SSH/SCP al hacer merge a `main`.
 
-`vm-gateway` cuenta con Nginx configurado (`gateway/nginx/neobanco.conf`) como reverse proxy hacia `ms-auth-users` (`/api/` → `vm-backend:8080`) y servidor de los archivos estáticos del frontend.
+`vm-gateway` cuenta con Nginx configurado (`gateway/nginx/neobanco.conf`) como reverse proxy hacia `ms-auth-users` (`/api/` → `vm-backend:8081`) y servidor de los archivos estáticos del frontend.
 
 ## Aviso
 
