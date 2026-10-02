@@ -24,7 +24,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 
-import static com.banco.auth.config.TokenJwtConfig.*;
+import static com.banco.common_security.config.TokenJwtConfig.*;
 
 public class JwtAuthenticationFilter extends UsernamePasswordAuthenticationFilter {
 

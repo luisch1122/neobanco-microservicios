@@ -18,6 +18,7 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import com.banco.auth.config.filter.JwtAuthenticationFilter;
+import com.banco.common_security.config.JwtValidationFilter;
 
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;

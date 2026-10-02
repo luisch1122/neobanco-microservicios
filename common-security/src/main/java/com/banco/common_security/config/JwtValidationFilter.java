@@ -1,4 +1,4 @@
-package com.banco.auth.config;
+package com.banco.common_security.config;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -20,8 +20,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import tools.jackson.databind.ObjectMapper;
 
-import static com.banco.auth.config.TokenJwtConfig.*;
-
+import static com.banco.common_security.config.TokenJwtConfig.*;
 
 public class JwtValidationFilter extends BasicAuthenticationFilter{
 
