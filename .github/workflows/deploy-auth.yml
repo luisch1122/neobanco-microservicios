@@ -6,12 +6,18 @@ on:
     branches: [ "main" ]
     paths:
       - 'ms-auth-users/**'
+      - 'common-security/**'
 
   # 2. Solo al ABRIR o ACTUALIZAR un Pull Request hacia main -> VERIFICA COMPILACIÓN
   pull_request:
     branches: [ "main" ]
     paths:
       - 'ms-auth-users/**'
+      - 'common-security/**'
+
+permissions:
+  contents: read
+  packages: read
 
 jobs:
   # JOB 1: Solo se ejecuta cuando abres un Pull Request (cuando ya terminaste la feature)
@@ -28,6 +34,15 @@ jobs:
           java-version: '25'
           distribution: 'temurin'
           cache: maven
+          server-id: github
+          server-username: GITHUB_ACTOR
+          server-password: GITHUB_TOKEN
+        env:
+          GITHUB_TOKEN: ${{ secrets.REPO_TOKEN }}
+
+      - name: 📦 Instalar common-security localmente
+        working-directory: ./common-security
+        run: bash mvnw -B clean install -DskipTests
 
       - name: 🧪 Verificar que compila antes de unir a main
         working-directory: ./ms-auth-users
@@ -47,6 +62,15 @@ jobs:
           java-version: '25'
           distribution: 'temurin'
           cache: maven
+          server-id: github
+          server-username: GITHUB_ACTOR
+          server-password: GITHUB_TOKEN
+        env:
+          GITHUB_TOKEN: ${{ secrets.REPO_TOKEN }}
+
+      - name: 📦 Instalar common-security localmente
+        working-directory: ./common-security
+        run: bash mvnw -B clean install -DskipTests
 
       - name: 🔨 Compilar y Desplegar Contenedor
         working-directory: ./ms-auth-users

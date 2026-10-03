@@ -1,4 +1,5 @@
-package com.banco.auth.config;
+package com.banco.common_security.config;
+
 
 public class TokenJwtConfig {
 
