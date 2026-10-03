@@ -29,6 +29,12 @@
 	<properties>
 		<java.version>25</java.version>
 	</properties>
+	<repositories>
+		<repository>
+			<id>github</id>
+			<url>https://maven.pkg.github.com/luisch1122/neobanco-microservicios</url>
+		</repository>
+	</repositories>
 	<dependencies>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
