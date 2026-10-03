@@ -55,6 +55,9 @@ jobs:
       - name: 📥 Clonar repositorio
         uses: actions/checkout@v5
 
+      - name: 🐳 Configurar Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: ☕ Configurar Java 25
         uses: actions/setup-java@v5
         with:
@@ -76,7 +79,7 @@ jobs:
         run: |
           java -version
           bash mvnw -B clean package -DskipTests
-          DOCKER_BUILDKIT=1 docker build \
+          docker buildx build --load \
             --secret id=maven_settings,src="$HOME/.m2/settings.xml" \
             --secret id=github_token,env=GITHUB_TOKEN \
             --secret id=github_actor,env=GITHUB_ACTOR \
