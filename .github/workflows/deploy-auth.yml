@@ -40,12 +40,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.REPO_TOKEN }}
 
-      - name: 📦 Instalar common-security localmente
-        working-directory: ./common-security
-        run: bash mvnw -B clean install -DskipTests
-
       - name: 🧪 Verificar que compila antes de unir a main
         working-directory: ./ms-auth-users
+        env:
+          GITHUB_TOKEN: ${{ secrets.REPO_TOKEN }}
+          GITHUB_ACTOR: ${{ github.actor }}
         run: bash mvnw -B clean test
 
   # JOB 2: Solo se ejecuta al hacer merge a 'main'
@@ -68,18 +67,20 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.REPO_TOKEN }}
 
-      - name: 📦 Instalar common-security localmente
-        working-directory: ./common-security
-        run: bash mvnw -B clean install -DskipTests
-
       - name: 🔨 Compilar y Desplegar Contenedor
         working-directory: ./ms-auth-users
         env:
           JAVA_HOME: ""
+          GITHUB_TOKEN: ${{ secrets.REPO_TOKEN }}
+          GITHUB_ACTOR: ${{ github.actor }}
         run: |
           java -version
           bash mvnw -B clean package -DskipTests
-          docker build -t ms-auth-users:latest .
+          DOCKER_BUILDKIT=1 docker build \
+            --secret id=maven_settings,src="$HOME/.m2/settings.xml" \
+            --secret id=github_token,env=GITHUB_TOKEN \
+            --secret id=github_actor,env=GITHUB_ACTOR \
+            -t ms-auth-users:latest .
           docker stop auth-container || true
           docker rm auth-container || true
           docker run -d \
