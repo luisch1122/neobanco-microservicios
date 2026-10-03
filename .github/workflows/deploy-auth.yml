@@ -40,6 +40,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.REPO_TOKEN }}
 
+      - name: 📦 Instalar common-security localmente
+        working-directory: ./common-security
+        run: bash mvnw -B clean install -DskipTests
+
       - name: 🧪 Verificar que compila antes de unir a main
         working-directory: ./ms-auth-users
         run: bash mvnw -B clean test
@@ -63,6 +67,10 @@ jobs:
           server-password: GITHUB_TOKEN
         env:
           GITHUB_TOKEN: ${{ secrets.REPO_TOKEN }}
+
+      - name: 📦 Instalar common-security localmente
+        working-directory: ./common-security
+        run: bash mvnw -B clean install -DskipTests
 
       - name: 🔨 Compilar y Desplegar Contenedor
         working-directory: ./ms-auth-users
