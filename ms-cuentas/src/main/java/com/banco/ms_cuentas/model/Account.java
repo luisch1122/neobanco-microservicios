@@ -24,9 +24,9 @@ public class Account {
     @Column(unique = true, nullable = false)
     private String numeroCuenta;
 
-    @NotBlank 
+    @NotNull 
     @Column(nullable = false)
-    private String usuarioEmail;
+    private Long userId;
 
     @NotNull 
     @Enumerated(EnumType.STRING)

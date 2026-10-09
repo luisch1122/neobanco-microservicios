@@ -73,7 +73,7 @@ public class JwtAuthenticationFilter extends UsernamePasswordAuthenticationFilte
         User users = (User) authResult.getPrincipal();
         String email = users.getUsername();
         Long userId = usersRepository.findByEmail(email)
-                .map(Users::getId)
+                .map(user -> user.getId())
                 .orElseThrow();
         
         Claims claims = Jwts
