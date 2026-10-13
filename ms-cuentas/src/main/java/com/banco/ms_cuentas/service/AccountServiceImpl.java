@@ -99,9 +99,10 @@ public class AccountServiceImpl implements AccountService {
 
         if (!account.getUserId().equals(userId)) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No tienes permiso para acceder a esta cuenta");
 
-        if (account.getEstadoCuenta().equals(EstadoCuenta.BLOQUEADA)){
+        if (account.getEstadoCuenta().equals(EstadoCuenta.BLOQUEADA) 
+            || account.getEstadoCuenta().equals(EstadoCuenta.INACTIVA)){
 
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Cuenta Bloqueada");
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Cuenta Bloqueada / Inactiva");
 
         }
 
@@ -124,9 +125,10 @@ public class AccountServiceImpl implements AccountService {
 
         if (account == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Cuenta no encontrada");
 
-        if (account.getEstadoCuenta().equals(EstadoCuenta.BLOQUEADA)){
+        if (account.getEstadoCuenta().equals(EstadoCuenta.BLOQUEADA) 
+            || account.getEstadoCuenta().equals(EstadoCuenta.INACTIVA)){
 
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Cuenta Bloqueada");
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Cuenta Bloqueada / Inactiva");
 
         }
 
