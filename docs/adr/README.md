@@ -15,6 +15,7 @@ Un registro corto que explica una decisión de arquitectura: el contexto que la 
 | [0003](0003-externalizacion-secreto-jwt.md) | Externalización del secreto de firma JWT | Aceptada |
 | [0004](0004-common-security-modulo-independiente.md) | `common-security` como módulo Maven independiente (no monorepo) | Aceptada |
 | [0005](0005-identificacion-usuario-entre-servicios.md) | Identificación del usuario entre microservicios mediante email (sin FK cruzada) | Aceptada |
+| [0006](0006-area-administrativa-pendiente.md) | Gestión administrativa de cuentas (desbloqueo) diferida — pendiente de diseño | Propuesta |
 
 ## Formato de un ADR nuevo
 

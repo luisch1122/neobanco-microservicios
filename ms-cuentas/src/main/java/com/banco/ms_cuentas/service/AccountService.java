@@ -3,6 +3,7 @@ package com.banco.ms_cuentas.service;
 import java.util.List;
 
 import com.banco.ms_cuentas.dto.AccountRequest;
+import com.banco.ms_cuentas.dto.StatusRequest;
 import com.banco.ms_cuentas.model.Account;
 
 public interface AccountService {
@@ -12,6 +13,8 @@ public interface AccountService {
     List<Account> list(Long userId);
 
     Account detail(String numeroCuenta, Long userId);
+
+    Account status(String numeroCuenta, StatusRequest statusRequest, Long userId);
 
     String createNumberAccount();
 

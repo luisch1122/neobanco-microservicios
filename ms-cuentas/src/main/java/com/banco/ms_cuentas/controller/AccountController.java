@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.banco.ms_cuentas.dto.AccountRequest;
+import com.banco.ms_cuentas.dto.StatusRequest;
 import com.banco.ms_cuentas.service.AccountService;
 
 import jakarta.validation.Valid;
@@ -64,9 +65,14 @@ public class AccountController {
     }
 
     @PatchMapping("/{numeroCuenta}/estado")
-    public ResponseEntity<?> statusAccount(){
-        return null;
+    public ResponseEntity<?> statusAccount( @PathVariable String numeroCuenta, 
+        @Valid @RequestBody StatusRequest statusRequest, Authentication authentication){
+
+        Long userId = (Long) authentication.getDetails();
+
+        return ResponseEntity.status(HttpStatus.OK).body(accountService.status(numeroCuenta, statusRequest, userId));
     }
+
 
     @PostMapping("/{numeroCuenta}/debito")
     public ResponseEntity<?> debit(){
