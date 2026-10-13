@@ -1,11 +1,15 @@
 package com.banco.ms_cuentas.service;
 
+import java.util.List;
+
 import com.banco.ms_cuentas.dto.AccountRequest;
 import com.banco.ms_cuentas.model.Account;
 
 public interface AccountService {
 
     Account create(AccountRequest accountRepository, Long userId);
+
+    List<Account> list(Long userId);
 
     String createNumberAccount();
 

@@ -1,5 +1,6 @@
 package com.banco.ms_cuentas.service;
 
+import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
 import com.banco.ms_cuentas.dto.AccountRequest;
@@ -35,6 +36,13 @@ public class AccountServiceImpl implements AccountService {
     }
 
     @Override
+    public List<Account> list(Long userId) {
+        
+        return accountRepository.findByUserId(userId);
+
+    }
+
+    @Override
     public  String createNumberAccount() {
 
         String numBanco = "0010";
@@ -42,8 +50,7 @@ public class AccountServiceImpl implements AccountService {
 
         return numBanco + numAleatorio;
 
-    }
-        
+    }   
 
 
 }

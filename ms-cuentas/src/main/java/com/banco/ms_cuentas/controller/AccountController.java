@@ -15,8 +15,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.banco.ms_cuentas.dto.AccountRequest;
-import com.banco.ms_cuentas.model.Account;
-import com.banco.ms_cuentas.repository.AccountRepository;
 import com.banco.ms_cuentas.service.AccountService;
 
 import jakarta.validation.Valid;
@@ -48,8 +46,12 @@ public class AccountController {
     }
 
     @GetMapping 
-    public ResponseEntity<?> listAccount(){
-        return null;
+    public ResponseEntity<?> listAccount(Authentication authentication){
+    
+        Long userId = (Long) authentication.getDetails();
+
+        return ResponseEntity.status(HttpStatus.OK).body(accountService.list(userId));
+    
     }
 
     @GetMapping("/{numeroCuenta}")
