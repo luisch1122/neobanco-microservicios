@@ -35,7 +35,7 @@ public class AccountController {
 
     @PostMapping
     public ResponseEntity<?> createAccount(@Valid @RequestBody AccountRequest accountRequest, 
-        Authentication authentication, BindingResult result){
+        BindingResult result, Authentication authentication){
 
         if (result.hasFieldErrors()) {
             return validation(result);

@@ -32,7 +32,7 @@ public class InternalAccountController {
 
     @PostMapping("/{numeroCuenta}/debito")
     public ResponseEntity<?> debit(@PathVariable String numeroCuenta,
-        @Valid @RequestBody AmountRequest amountRequest, Authentication authentication, BindingResult result){
+        @Valid @RequestBody AmountRequest amountRequest, BindingResult result, Authentication authentication){
 
         if (result.hasFieldErrors()) return validation(result);
         Long userId = (Long) authentication.getDetails();
@@ -42,7 +42,7 @@ public class InternalAccountController {
 
     @PostMapping("/{numeroCuenta}/credito")
     public ResponseEntity<?> credit(@PathVariable String numeroCuenta,
-        @Valid @RequestBody AmountRequest amountRequest, Authentication authentication, BindingResult result){
+        @Valid @RequestBody AmountRequest amountRequest, BindingResult result, Authentication authentication){
         
         if (result.hasFieldErrors()) return validation(result);
         
