@@ -9,6 +9,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -55,8 +56,11 @@ public class AccountController {
     }
 
     @GetMapping("/{numeroCuenta}")
-    public ResponseEntity<?> detailAccount(){
-        return null;
+    public ResponseEntity<?> detailAccount(@PathVariable String numeroCuenta, Authentication authentication){
+
+        Long userId = (Long) authentication.getDetails();
+
+        return ResponseEntity.status(HttpStatus.OK).body(accountService.detail(numeroCuenta, userId));
     }
 
     @PatchMapping("/{numeroCuenta}/estado")

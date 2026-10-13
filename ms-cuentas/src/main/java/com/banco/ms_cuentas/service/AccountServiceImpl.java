@@ -3,9 +3,14 @@ package com.banco.ms_cuentas.service;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
+
 import com.banco.ms_cuentas.dto.AccountRequest;
 import com.banco.ms_cuentas.model.Account;
 import com.banco.ms_cuentas.repository.AccountRepository;
+
+import jakarta.transaction.Transactional;
 
 public class AccountServiceImpl implements AccountService {
 
@@ -16,6 +21,7 @@ public class AccountServiceImpl implements AccountService {
     }
 
     @Override
+    @Transactional
     public Account create(AccountRequest accountRequest, Long userId) {
 
         Account account = new Account();
@@ -39,6 +45,19 @@ public class AccountServiceImpl implements AccountService {
     public List<Account> list(Long userId) {
         
         return accountRepository.findByUserId(userId);
+
+    }
+
+    @Override 
+    public Account detail(String numeroCuenta, Long userId) {
+
+        Account account = accountRepository.findByNumeroCuenta(numeroCuenta);
+
+        if (account == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Cuenta no encontrada");
+
+        if (!account.getUserId().equals(userId)) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No tienes permiso para acceder a esta cuenta");
+
+        return account;
 
     }
 

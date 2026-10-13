@@ -13,4 +13,6 @@ public interface AccountRepository extends CrudRepository<Account, Long> {
 
     List<Account> findByUserId(Long userId);
 
+    Account findByNumeroCuenta(String numeroCuenta);
+
 }

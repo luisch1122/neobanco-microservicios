@@ -11,6 +11,8 @@ public interface AccountService {
 
     List<Account> list(Long userId);
 
+    Account detail(String numeroCuenta, Long userId);
+
     String createNumberAccount();
 
 }
