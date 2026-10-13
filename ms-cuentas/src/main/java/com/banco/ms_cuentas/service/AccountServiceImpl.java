@@ -4,9 +4,11 @@ import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.banco.ms_cuentas.dto.AccountRequest;
+import com.banco.ms_cuentas.dto.AmountRequest;
 import com.banco.ms_cuentas.dto.StatusRequest;
 import com.banco.ms_cuentas.model.Account;
 import com.banco.ms_cuentas.model.Account.EstadoCuenta;
@@ -14,6 +16,7 @@ import com.banco.ms_cuentas.repository.AccountRepository;
 
 import jakarta.transaction.Transactional;
 
+@Service
 public class AccountServiceImpl implements AccountService {
 
     private final AccountRepository accountRepository;
@@ -87,6 +90,53 @@ public class AccountServiceImpl implements AccountService {
     }
 
     @Override
+    @Transactional 
+    public Account debit(String numeroCuenta, AmountRequest amountRequest, Long userId) {
+        
+        Account account = accountRepository.findByNumeroCuenta(numeroCuenta);
+
+        if (account == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Cuenta no encontrada");
+
+        if (!account.getUserId().equals(userId)) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No tienes permiso para acceder a esta cuenta");
+
+        if (account.getEstadoCuenta().equals(EstadoCuenta.BLOQUEADA)){
+
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Cuenta Bloqueada");
+
+        }
+
+        if (account.getSaldo().compareTo(amountRequest.getMonto()) < 0){
+
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Fondos insuficientes");
+
+        }
+
+        account.setSaldo(account.getSaldo().subtract(amountRequest.getMonto()));
+
+        return accountRepository.save(account);
+    }  
+
+    @Override
+    @Transactional 
+    public Account credit(String numeroCuenta, AmountRequest amountRequest) {
+
+        Account account = accountRepository.findByNumeroCuenta(numeroCuenta);
+
+        if (account == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Cuenta no encontrada");
+
+        if (account.getEstadoCuenta().equals(EstadoCuenta.BLOQUEADA)){
+
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Cuenta Bloqueada");
+
+        }
+
+        account.setSaldo(account.getSaldo().add(amountRequest.getMonto()));
+
+        return accountRepository.save(account);
+
+    }
+
+    @Override
     public  String createNumberAccount() {
 
         String numBanco = "0010";
@@ -94,7 +144,7 @@ public class AccountServiceImpl implements AccountService {
 
         return numBanco + numAleatorio;
 
-    }   
+    } 
 
 
 }

@@ -73,17 +73,6 @@ public class AccountController {
         return ResponseEntity.status(HttpStatus.OK).body(accountService.status(numeroCuenta, statusRequest, userId));
     }
 
-
-    @PostMapping("/{numeroCuenta}/debito")
-    public ResponseEntity<?> debit(){
-        return null;
-    }
-
-    @PostMapping("/{numeroCuenta}/credito")
-    public ResponseEntity<?> credit(){
-        return null;
-    }
-
     private ResponseEntity<?> validation(BindingResult result) {
 
         Map<String, String> errors = new HashMap<>();
