@@ -299,10 +299,16 @@ Las evidencias recomendadas son capturas del frontend, ejemplos de peticiones RE
 - [x] Configurar Nginx en `vm-gateway` como reverse proxy y servidor de estáticos (`gateway/nginx/neobanco.conf`).
 - [x] Desplegar el frontend en `vm-gateway` vía SSH/SCP desde el runner de `vm-backend` (job `deploy-to-gateway`).
 - [x] Externalizar `SECRET_KEY` del JWT (`TokenJwtConfig`) a variable de entorno (`jwt.secret` / secreto `JWT_SECRET` en GitHub Actions).
-- [x] Extraer una librería compartida de validación de JWT (`common-security`) para los microservicios consumidores (ver [ADR-0004](docs/adr/0004-common-security-modulo-independiente.md)).
-- [ ] Crear los proyectos base del resto de microservicios (`ms-cuentas`, `ms-transacciones`, `ms-notificaciones`, `ms-auditoria`).
-- [ ] Definir los contratos REST del resto de microservicios con OpenAPI.
-- [ ] Implementar cuentas, saldos y transferencias.
+- [x] Extraer una librería compartida de validación de JWT (`common-security`) para los microservicios consumidores (ver [ADR-0004](docs/adr/0004-common-security-modulo-independiente.md)), publicada en GitHub Packages.
+- [x] Crear el proyecto base de `ms-cuentas` (Java 25, Spring Boot 4, `common-security` como dependencia).
+- [x] Implementar CRUD de cuentas (`crear`, `listar`, `detalle`, `cambio de estado`) con validación de propiedad (403 vs 404) por usuario.
+- [x] Implementar `débito`/`crédito` internos (`/internal/account/...`), separados del controller público y bloqueados a nivel de Nginx (`gateway/nginx/neobanco.conf`) para uso exclusivo de `ms-transacciones`.
+- [x] Añadir pruebas unitarias y de integración de `ms-cuentas` (perfil H2 en memoria).
+- [x] Automatizar build, pruebas y despliegue de `ms-cuentas` con GitHub Actions (`.github/workflows/deploy-cuentas.yml`).
+- [x] Hacer público el repositorio: migrar los jobs de verificación (`test-and-verify`) de `self-hosted` a `ubuntu-latest` en todos los workflows, dejando `self-hosted` solo para los jobs de despliegue gatillados por `push` a `main`.
+- [ ] Crear los proyectos base del resto de microservicios (`ms-transacciones` en progreso, `ms-notificaciones`, `ms-auditoria` pendientes).
+- [ ] Definir los contratos REST del resto de microservicios con OpenAPI (`ms-cuentas` y `ms-transacciones` pendientes).
+- [ ] Implementar transferencias entre cuentas en `ms-transacciones` (modelo `Transaction` e idempotencia por `idempotencyKey` en progreso).
 - [ ] Diseñar la gestión administrativa de cuentas (desbloqueo, back-office) — ver [ADR-0006](docs/adr/0006-area-administrativa-pendiente.md), diferido hasta definir roles/autorización administrativa.
 - [ ] Añadir Redis para idempotencia.
 - [ ] Implementar Transactional Outbox y publicación en RabbitMQ.
@@ -328,7 +334,20 @@ El microservicio `ms-auth-users` es el primero en implementarse y ya cuenta con 
   validación de JWT y gestión de perfil/contraseña) sobre una base de datos H2 en memoria.
 - Pipeline de CI/CD (`.github/workflows/deploy-auth.yml`) que valida la compilación en cada Pull Request y despliega en contenedor Docker al hacer merge a `main`.
 
-El resto de microservicios (`ms-cuentas`, `ms-transacciones`, `ms-notificaciones`, `ms-auditoria`) y la librería compartida de seguridad (`common-security`) aún no se han creado. La infraestructura de las 3 VMs y las bases de datos ya están desplegadas y operativas.
+El resto de microservicios (`ms-notificaciones`, `ms-auditoria`) aún no se han creado. La infraestructura de las 3 VMs y las bases de datos ya están desplegadas y operativas.
+
+El microservicio `ms-cuentas` ya cuenta con un flujo funcional de:
+
+- CRUD de cuentas (`POST /account`, `GET /account`, `GET /account/{numeroCuenta}`, `PATCH /account/{numeroCuenta}/estado`), con validación de propiedad (403 si la cuenta no pertenece al usuario autenticado, 404 si no existe).
+- Débito y crédito internos (`POST /internal/account/{numeroCuenta}/debito` y `/credito`), separados en un controller propio (`InternalAccountController`) y bloqueados a nivel de Nginx para que solo sean alcanzables desde la red interna (pensado para ser consumidos por `ms-transacciones`, no por el frontend).
+- Reglas de negocio: una cuenta `BLOQUEADA` no puede cambiar de estado en ninguna dirección sin intervención administrativa (ver ADR-0006), y ni `BLOQUEADA` ni `INACTIVA` permiten operaciones de débito/crédito.
+- Seguridad compartida con `ms-auth-users` mediante `common-security` (mismo secreto JWT, mismo filtro de validación).
+- Cobertura de pruebas unitarias (Mockito) y de integración (MockMvc + H2 + JWT real) sobre las reglas de ownership, estado y saldo.
+- Pipeline de CI/CD (`.github/workflows/deploy-cuentas.yml`) con el mismo patrón seguro de `ms-auth-users`.
+
+`ms-transacciones` está en desarrollo inicial: modelo `Transaction` (estados `PENDIENTE`/`COMPLETADA`/`FALLIDA`/`REVERTIDA`, pensado como una Saga simple con compensación manual), DTO `TransferenciaRequest` con clave de idempotencia, y configuración de seguridad ya alineada con el resto de servicios.
+
+El repositorio ya es público; los workflows de CI/CD fueron ajustados para que los jobs de verificación (`test-and-verify`) corran en `ubuntu-latest` en lugar de `self-hosted`, evitando exponer las VMs a ejecución de código de Pull Requests externos.
 
 El frontend Angular (`frontend/`) ya cuenta con:
 
