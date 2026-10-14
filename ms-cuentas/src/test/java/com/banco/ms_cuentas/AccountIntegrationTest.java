@@ -60,6 +60,15 @@ class AccountIntegrationTest {
                 .compact();
     }
 
+    private String tokenSinUserId(String email) {
+        SecretKey secretKey = Keys.hmacShaKeyFor(Decoders.BASE64.decode(jwtSecret));
+
+        return "Bearer " + Jwts.builder()
+                .subject(email)
+                .signWith(secretKey)
+                .compact();
+    }
+
     private String createAccountRequestBody(String tipoCuenta, String moneda) {
         return """
                 {
@@ -110,6 +119,15 @@ class AccountIntegrationTest {
                     int statusCode = result.getResponse().getStatus();
                     org.assertj.core.api.Assertions.assertThat(statusCode).isIn(401, 403);
                 });
+    }
+
+    @Test
+    void tokenSinUserId_noPuedeCrearCuenta() throws Exception {
+        mockMvc.perform(post("/account")
+                .header("Authorization", tokenSinUserId("usuario1@example.com"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(createAccountRequestBody("AHORRO", "VES")))
+                .andExpect(status().isUnauthorized());
     }
 
     // ---------------------------------------------------------------
