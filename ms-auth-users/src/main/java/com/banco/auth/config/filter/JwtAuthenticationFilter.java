@@ -15,7 +15,9 @@ import org.springframework.security.core.userdetails.User;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 import com.banco.auth.model.Users;
+import com.banco.auth.repository.UsersRepository;
 
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -30,11 +32,14 @@ public class JwtAuthenticationFilter extends UsernamePasswordAuthenticationFilte
 
     private AuthenticationManager authenticationManager;
     private final SecretKey secretKey;
+    private final UsersRepository usersRepository;
 
-    public JwtAuthenticationFilter(AuthenticationManager authenticationManager, SecretKey secretKey) {
+    public JwtAuthenticationFilter(AuthenticationManager authenticationManager, SecretKey secretKey, 
+        UsersRepository usersRepository) {
 
         this.authenticationManager = authenticationManager;
         this.secretKey = secretKey;
+        this.usersRepository = usersRepository;
         setFilterProcessesUrl("/auth/login");
     }
 
@@ -67,8 +72,18 @@ public class JwtAuthenticationFilter extends UsernamePasswordAuthenticationFilte
         
         User users = (User) authResult.getPrincipal();
         String email = users.getUsername();
+        Long userId = usersRepository.findByEmail(email)
+                .map(user -> user.getId())
+                .orElseThrow();
+        
+        Claims claims = Jwts
+                .claims()
+                .add("userId", userId)
+                .build();
+
         String token = Jwts.builder()
                             .subject(email)
+                            .claims(claims)
                             .expiration(new Date(System.currentTimeMillis() + 3600000))
                             .issuedAt(new Date())
                             .signWith(secretKey)

@@ -1,0 +1,88 @@
+package com.banco.ms_cuentas.controller;
+
+import java.util.HashMap;
+import java.util.Map;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.validation.BindingResult;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.banco.ms_cuentas.dto.AccountRequest;
+import com.banco.ms_cuentas.dto.StatusRequest;
+import com.banco.ms_cuentas.service.AccountService;
+
+import jakarta.validation.Valid;
+
+@RestController 
+@RequestMapping("/account")
+public class AccountController {
+
+    private final AccountService accountService;
+
+    public AccountController(AccountService accountService) {
+
+        this.accountService = accountService;
+
+    }
+
+    @PostMapping
+    public ResponseEntity<?> createAccount(@Valid @RequestBody AccountRequest accountRequest, 
+        BindingResult result, Authentication authentication){
+
+        if (result.hasFieldErrors()) {
+            return validation(result);
+        }
+
+        Long userId = (Long) authentication.getDetails();
+        
+        return ResponseEntity.status(HttpStatus.CREATED).body(accountService.create(accountRequest, userId));
+
+    }
+
+    @GetMapping 
+    public ResponseEntity<?> listAccount(Authentication authentication){
+    
+        Long userId = (Long) authentication.getDetails();
+
+        return ResponseEntity.status(HttpStatus.OK).body(accountService.list(userId));
+    
+    }
+
+    @GetMapping("/{numeroCuenta}")
+    public ResponseEntity<?> detailAccount(@PathVariable String numeroCuenta, Authentication authentication){
+
+        Long userId = (Long) authentication.getDetails();
+
+        return ResponseEntity.status(HttpStatus.OK).body(accountService.detail(numeroCuenta, userId));
+    }
+
+    @PatchMapping("/{numeroCuenta}/estado")
+    public ResponseEntity<?> statusAccount( @PathVariable String numeroCuenta, 
+        @Valid @RequestBody StatusRequest statusRequest, Authentication authentication){
+
+        Long userId = (Long) authentication.getDetails();
+
+        return ResponseEntity.status(HttpStatus.OK).body(accountService.status(numeroCuenta, statusRequest, userId));
+    }
+
+    private ResponseEntity<?> validation(BindingResult result) {
+
+        Map<String, String> errors = new HashMap<>();
+
+        result.getFieldErrors().forEach(err -> {
+            errors.put(err.getField(), "El campo " + err.getField() + " " + err.getDefaultMessage());
+        });
+
+        return ResponseEntity.badRequest().body(errors);
+    }
+
+}
+

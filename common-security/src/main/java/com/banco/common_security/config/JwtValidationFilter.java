@@ -46,9 +46,14 @@ public class JwtValidationFilter extends BasicAuthenticationFilter{
 
         try {
             Claims claims = Jwts.parser().verifyWith(secretKey).build().parseSignedClaims(token).getPayload();
+            Object userId = claims.get("userId", Long.class);
+            if (userId == null) {
+                throw new JwtException("Missing userId claim");
+            }
             String email = claims.getSubject();
             
             UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(email, null, java.util.List.of());
+            authenticationToken.setDetails(userId);
             SecurityContextHolder .getContext().setAuthentication(authenticationToken);
             chain.doFilter(request, response);
         } catch (JwtException e) {

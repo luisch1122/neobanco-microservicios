@@ -299,10 +299,11 @@ Las evidencias recomendadas son capturas del frontend, ejemplos de peticiones RE
 - [x] Configurar Nginx en `vm-gateway` como reverse proxy y servidor de estáticos (`gateway/nginx/neobanco.conf`).
 - [x] Desplegar el frontend en `vm-gateway` vía SSH/SCP desde el runner de `vm-backend` (job `deploy-to-gateway`).
 - [x] Externalizar `SECRET_KEY` del JWT (`TokenJwtConfig`) a variable de entorno (`jwt.secret` / secreto `JWT_SECRET` en GitHub Actions).
+- [x] Extraer una librería compartida de validación de JWT (`common-security`) para los microservicios consumidores (ver [ADR-0004](docs/adr/0004-common-security-modulo-independiente.md)).
 - [ ] Crear los proyectos base del resto de microservicios (`ms-cuentas`, `ms-transacciones`, `ms-notificaciones`, `ms-auditoria`).
 - [ ] Definir los contratos REST del resto de microservicios con OpenAPI.
-- [ ] Extraer una librería compartida de validación de JWT (`common-security`) para los microservicios consumidores.
 - [ ] Implementar cuentas, saldos y transferencias.
+- [ ] Diseñar la gestión administrativa de cuentas (desbloqueo, back-office) — ver [ADR-0006](docs/adr/0006-area-administrativa-pendiente.md), diferido hasta definir roles/autorización administrativa.
 - [ ] Añadir Redis para idempotencia.
 - [ ] Implementar Transactional Outbox y publicación en RabbitMQ.
 - [ ] Implementar notificaciones WebSocket.

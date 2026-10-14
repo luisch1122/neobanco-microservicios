@@ -1,5 +1,6 @@
 package com.banco.auth.config;
 
+import com.banco.auth.repository.UsersRepository;
 import java.util.Arrays;
 
 import javax.crypto.SecretKey;
@@ -26,13 +27,16 @@ import io.jsonwebtoken.security.Keys;
 @Configuration
 public class SecurityConfig {
 
+    private final UsersRepository usersRepository;
+
     private AuthenticationConfiguration authenticationConfiguration;
 
     @Value("${jwt.secret}")
     private String jwtSecret;
 
-    public SecurityConfig(AuthenticationConfiguration authenticationConfiguration) {
+    public SecurityConfig(AuthenticationConfiguration authenticationConfiguration, UsersRepository usersRepository) {
         this.authenticationConfiguration = authenticationConfiguration;
+        this.usersRepository = usersRepository;
     }
 
     @Bean
@@ -58,7 +62,7 @@ public class SecurityConfig {
         .requestMatchers(HttpMethod.POST, "/auth/register").permitAll()
         .anyRequest().authenticated())
         .cors(cors -> cors.configurationSource(configurationSource()))
-        .addFilter(new JwtAuthenticationFilter(authenticationManager(), jwtSecretKey()))
+        .addFilter(new JwtAuthenticationFilter(authenticationManager(), jwtSecretKey(), usersRepository))
         .addFilter(new JwtValidationFilter(authenticationManager(), jwtSecretKey()))
         .csrf(config -> config.disable())
         .sessionManagement(management -> management.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

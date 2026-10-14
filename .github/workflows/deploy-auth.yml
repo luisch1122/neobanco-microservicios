@@ -23,7 +23,7 @@ jobs:
   # JOB 1: Solo se ejecuta cuando abres un Pull Request (cuando ya terminaste la feature)
   test-and-verify:
     if: github.event_name == 'pull_request'
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       - name: 📥 Clonar repositorio
         uses: actions/checkout@v5
