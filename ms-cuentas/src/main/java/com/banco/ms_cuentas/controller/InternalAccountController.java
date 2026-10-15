@@ -30,7 +30,7 @@ public class InternalAccountController {
 
     }
 
-    @PostMapping("/{numeroCuenta}/debito")
+    @PostMapping("/{numeroCuenta}/debit")
     public ResponseEntity<?> debit(@PathVariable String numeroCuenta,
         @Valid @RequestBody AmountRequest amountRequest, BindingResult result, Authentication authentication){
 
@@ -40,7 +40,7 @@ public class InternalAccountController {
         return ResponseEntity.ok(accountService.debit(numeroCuenta, amountRequest, userId));
     }
 
-    @PostMapping("/{numeroCuenta}/credito")
+    @PostMapping("/{numeroCuenta}/credit")
     public ResponseEntity<?> credit(@PathVariable String numeroCuenta,
         @Valid @RequestBody AmountRequest amountRequest, BindingResult result, Authentication authentication){
         

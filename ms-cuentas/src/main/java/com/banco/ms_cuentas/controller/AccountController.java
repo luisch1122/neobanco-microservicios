@@ -64,7 +64,7 @@ public class AccountController {
         return ResponseEntity.status(HttpStatus.OK).body(accountService.detail(numeroCuenta, userId));
     }
 
-    @PatchMapping("/{numeroCuenta}/estado")
+    @PatchMapping("/{numeroCuenta}/status")
     public ResponseEntity<?> statusAccount( @PathVariable String numeroCuenta, 
         @Valid @RequestBody StatusRequest statusRequest, Authentication authentication){
 
