@@ -54,7 +54,7 @@ public class Transaction {
     private LocalDateTime actualizadoEn;
 
     public enum EstadoTransaccion {
-        PENDIENTE, COMPLETADA, FALLIDA, REVERTIDA
+        PENDIENTE, COMPLETADA, FALLIDA, REVERTIDA, FALLO_CRITICO_SIN_COMPENSAR
     }
 
     public enum TipoTransaccion {

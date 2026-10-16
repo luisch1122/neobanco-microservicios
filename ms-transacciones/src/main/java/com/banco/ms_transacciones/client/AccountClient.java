@@ -25,7 +25,6 @@ public class AccountClient {
             .body(new AmountRequest(amont))
             .retrieve()
             .toBodilessEntity();
-
     }
 
     public void credit(String numeroCuenta, BigDecimal amont, String auth){
@@ -35,7 +34,14 @@ public class AccountClient {
             .body(new AmountRequest(amont))
             .retrieve()
             .toBodilessEntity();
+    }
 
+    public void verify(String numeroCuenta, String auth){
+        restClient.get()
+            .uri("/account/{numeroCuenta}", numeroCuenta)
+            .header("Authorization", auth)
+            .retrieve()
+            .toBodilessEntity();
     }
 
 }

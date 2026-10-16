@@ -7,10 +7,10 @@ import com.banco.ms_transacciones.model.Transaction;
 
 public interface TransactionService {
 
-    Transaction transfer(TransactionRequest transactionRequest, String auth, Long userId);
+    Transaction transfer(TransactionRequest transactionRequest, String auth);
 
-    List<Transaction> listar(Long userId);
+    List<Transaction> list(String numeroCuenta, String auth);
 
-    Transaction detalle(Long id, Long userId);
+    Transaction detail(Long id, String auth);
 
 }

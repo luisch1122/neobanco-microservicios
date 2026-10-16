@@ -13,4 +13,6 @@ public interface TransactionRepository extends CrudRepository<Transaction, Long>
 
     List<Transaction> findByCuentaOrigenOrCuentaDestino(String cuentaOrigen, String cuentaDestino);
 
+    Optional<Transaction> findById(Long id);
+
 }
