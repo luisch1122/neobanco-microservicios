@@ -36,9 +36,9 @@ public class TransactionServiceImpl implements TransactionService {
     public Transaction transfer(TransactionRequest transactionRequest, String auth) {
 
         Optional<Transaction> key = transactionRepository
-                                    .findByIdempotencyKey( 
-                                        transactionRequest.getIdempotencyKey()
-                                    );
+            .findByIdempotencyKey( 
+                transactionRequest.getIdempotencyKey()
+            );
 
         if(key.isPresent()){
 

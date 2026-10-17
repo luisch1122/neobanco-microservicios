@@ -1,4 +1,4 @@
-package com.banco.ms_transacciones.controller;
+ package com.banco.ms_transacciones.controller;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -10,6 +10,7 @@ import java.util.Map;
 import org.springframework.http.HttpHeaders;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -42,14 +43,20 @@ public class TransactionController {
         return  ResponseEntity.status(HttpStatus.CREATED).body(transaccionService.transfer(transactionRequest, authorization));
     }
 
-    @GetMapping 
-    public ResponseEntity<?> transactions(){
-        return null;
+    @GetMapping ("/{numeroCuenta}")
+    public ResponseEntity<?> transactions(@PathVariable String numeroCuenta, 
+        @RequestHeader(HttpHeaders.AUTHORIZATION) String authorization){
+
+        return  ResponseEntity.status(HttpStatus.OK).body(transaccionService.list(numeroCuenta, authorization));
+
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<?> detailTranstion(){
-        return null;
+    public ResponseEntity<?> detailTranstion(@PathVariable Long id, 
+        @RequestHeader(HttpHeaders.AUTHORIZATION) String authorization){
+
+        return  ResponseEntity.status(HttpStatus.OK).body(transaccionService.detail(id, authorization));
+        
     }
 
     private ResponseEntity<?> validation(BindingResult result) {
