@@ -9,6 +9,7 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -32,21 +33,27 @@ public class InternalAccountController {
 
     @PostMapping("/{numeroCuenta}/debit")
     public ResponseEntity<?> debit(@PathVariable String numeroCuenta,
-        @Valid @RequestBody AmountRequest amountRequest, BindingResult result, Authentication authentication){
+        @Valid @RequestBody AmountRequest amountRequest, 
+        BindingResult result, 
+        Authentication authentication, 
+        @RequestHeader("Idempotency-Key") String idempotencyKey){
 
         if (result.hasFieldErrors()) return validation(result);
         Long userId = (Long) authentication.getDetails();
 
-        return ResponseEntity.ok(accountService.debit(numeroCuenta, amountRequest, userId));
+        return ResponseEntity.ok(accountService.debit(numeroCuenta, amountRequest, userId, idempotencyKey));
     }
 
     @PostMapping("/{numeroCuenta}/credit")
     public ResponseEntity<?> credit(@PathVariable String numeroCuenta,
-        @Valid @RequestBody AmountRequest amountRequest, BindingResult result, Authentication authentication){
+        @Valid @RequestBody AmountRequest amountRequest, 
+        BindingResult result, 
+        Authentication authentication,
+        @RequestHeader("Idempotency-Key") String idempotencyKey){
         
         if (result.hasFieldErrors()) return validation(result);
         
-        return ResponseEntity.ok(accountService.credit(numeroCuenta, amountRequest));
+        return ResponseEntity.ok(accountService.credit(numeroCuenta, amountRequest, idempotencyKey));
     }
 
     private ResponseEntity<?> validation(BindingResult result) {

@@ -17,9 +17,9 @@ public interface AccountService {
 
     Account status(String numeroCuenta, StatusRequest statusRequest, Long userId);
 
-    Account debit(String numeroCuenta, AmountRequest amountRequest, Long userId);
+    Account debit(String numeroCuenta, AmountRequest amountRequest, Long userId, String idempotencyKey);
 
-    Account credit(String numeroCuenta, AmountRequest amountRequest);
+    Account credit(String numeroCuenta, AmountRequest amountRequest, String idempotencyKey);
 
     String createNumberAccount();
 

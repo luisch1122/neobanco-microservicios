@@ -17,20 +17,22 @@ public class AccountClient {
         this.restClient = RestClient.builder().baseUrl(baseUrl).build();
     }
 
-    public void debit(String numeroCuenta, BigDecimal amont, String auth) {
+    public void debit(String numeroCuenta, BigDecimal amont, String auth, String idempotencyKey) {
 
         restClient.post()
             .uri("/internal/account/{numeroCuenta}/debit", numeroCuenta)
-            .header("Authorization", auth)
+            .header("Authorization", auth) 
+            .header("Idempotency-Key", idempotencyKey)
             .body(new AmountRequest(amont))
             .retrieve()
             .toBodilessEntity();
     }
 
-    public void credit(String numeroCuenta, BigDecimal amont, String auth){
+    public void credit(String numeroCuenta, BigDecimal amont, String auth, String idempotencyKey){
         restClient.post()
             .uri("/internal/account/{numeroCuenta}/credit", numeroCuenta)
-            .header("Authorization", auth)
+            .header("Authorization", auth) 
+            .header("Idempotency-Key", idempotencyKey)
             .body(new AmountRequest(amont))
             .retrieve()
             .toBodilessEntity();

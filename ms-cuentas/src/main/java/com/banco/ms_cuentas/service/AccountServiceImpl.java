@@ -1,6 +1,8 @@
 package com.banco.ms_cuentas.service;
 
 import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
 
 import org.springframework.http.HttpStatus;
@@ -11,7 +13,10 @@ import com.banco.ms_cuentas.dto.AccountRequest;
 import com.banco.ms_cuentas.dto.AmountRequest;
 import com.banco.ms_cuentas.dto.StatusRequest;
 import com.banco.ms_cuentas.model.Account;
+import com.banco.ms_cuentas.model.AccountMovement;
 import com.banco.ms_cuentas.model.Account.EstadoCuenta;
+import com.banco.ms_cuentas.model.AccountMovement.Tipo;
+import com.banco.ms_cuentas.repository.AccountMovementRepository;
 import com.banco.ms_cuentas.repository.AccountRepository;
 
 import jakarta.transaction.Transactional;
@@ -20,9 +25,13 @@ import jakarta.transaction.Transactional;
 public class AccountServiceImpl implements AccountService {
 
     private final AccountRepository accountRepository;
+    private final AccountMovementRepository accountMovementRepository;
 
-    public AccountServiceImpl(AccountRepository accountRepository) {
+    public AccountServiceImpl(AccountRepository accountRepository,
+        AccountMovementRepository accountMovementRepository
+    ) {
         this.accountRepository = accountRepository;
+        this.accountMovementRepository = accountMovementRepository;
     }
 
     @Override
@@ -91,13 +100,35 @@ public class AccountServiceImpl implements AccountService {
 
     @Override
     @Transactional 
-    public Account debit(String numeroCuenta, AmountRequest amountRequest, Long userId) {
+    public Account debit(String numeroCuenta, AmountRequest amountRequest, Long userId, String idempotencyKey) {
         
-        Account account = accountRepository.findByNumeroCuenta(numeroCuenta);
+        Account account = accountRepository.findByNumeroCuentaForUpdate(numeroCuenta);
 
         if (account == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Cuenta no encontrada");
 
         if (!account.getUserId().equals(userId)) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No tienes permiso para acceder a esta cuenta");
+
+        Optional<AccountMovement> existing = accountMovementRepository.findByIdempotencyKey(idempotencyKey);
+
+        if (existing.isPresent()){
+
+            AccountMovement previous = existing.get();
+
+            boolean sameData =
+                    Objects.equals(previous.getCuenta(), numeroCuenta)
+                    && previous.getTipo() == Tipo.DEBITO
+                    && previous.getMonto() != null
+                    && previous.getMonto().compareTo(amountRequest.getMonto()) == 0;
+
+            if (!sameData) {
+
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "La clave de idempotencia ya fue usada con otros datos");
+            
+            }
+
+            return account;
+
+        }
 
         if (account.getEstadoCuenta().equals(EstadoCuenta.BLOQUEADA) 
             || account.getEstadoCuenta().equals(EstadoCuenta.INACTIVA)){
@@ -112,6 +143,15 @@ public class AccountServiceImpl implements AccountService {
 
         }
 
+        AccountMovement accountMovement = new AccountMovement();
+
+        accountMovement.setIdempotencyKey(idempotencyKey);
+        accountMovement.setCuenta(numeroCuenta);
+        accountMovement.setTipo(Tipo.DEBITO);
+        accountMovement.setMonto(amountRequest.getMonto());
+
+        accountMovementRepository.save(accountMovement);
+        
         account.setSaldo(account.getSaldo().subtract(amountRequest.getMonto()));
 
         return accountRepository.save(account);
@@ -119,11 +159,53 @@ public class AccountServiceImpl implements AccountService {
 
     @Override
     @Transactional 
-    public Account credit(String numeroCuenta, AmountRequest amountRequest) {
+    public Account credit(String numeroCuenta, AmountRequest amountRequest, String idempotencyKey) {
 
-        Account account = accountRepository.findByNumeroCuenta(numeroCuenta);
+        Account account = accountRepository.findByNumeroCuentaForUpdate(numeroCuenta);
 
         if (account == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Cuenta no encontrada");
+
+        int separator = idempotencyKey.lastIndexOf(':');
+
+        if (separator < 0 || separator == idempotencyKey.length() - 1) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Clave de idempotencia inválida");
+        }
+
+        Tipo tipo;
+        try {
+            tipo = Tipo.valueOf(idempotencyKey.substring(separator + 1));
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Tipo de movimiento inválido");
+        }
+
+        if (tipo != Tipo.CREDITO && tipo != Tipo.COMPENSACION) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Este endpoint solo permite créditos");
+        }
+
+        Optional<AccountMovement> existing =
+            accountMovementRepository.findByIdempotencyKey(idempotencyKey);
+
+        if (existing.isPresent()) {
+            AccountMovement previous = existing.get();
+
+            boolean sameData =
+                    Objects.equals(previous.getCuenta(), numeroCuenta)
+                    && previous.getTipo() == tipo
+                    && previous.getMonto() != null
+                    && previous.getMonto().compareTo(amountRequest.getMonto()) == 0;
+
+            if (!sameData) {
+                throw new ResponseStatusException(
+                        HttpStatus.CONFLICT,
+                        "La clave de idempotencia ya fue usada con otros datos");
+            }
+
+            return account;
+        }
+
 
         if (account.getEstadoCuenta().equals(EstadoCuenta.BLOQUEADA) 
             || account.getEstadoCuenta().equals(EstadoCuenta.INACTIVA)){
@@ -131,6 +213,15 @@ public class AccountServiceImpl implements AccountService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Cuenta Bloqueada / Inactiva");
 
         }
+
+        AccountMovement accountMovement = new AccountMovement();
+
+        accountMovement.setIdempotencyKey(idempotencyKey);
+        accountMovement.setCuenta(numeroCuenta);
+        accountMovement.setTipo(tipo);
+        accountMovement.setMonto(amountRequest.getMonto());
+
+        accountMovementRepository.save(accountMovement);
 
         account.setSaldo(account.getSaldo().add(amountRequest.getMonto()));
 

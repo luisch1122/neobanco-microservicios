@@ -174,7 +174,7 @@ class AccountServiceImplTest {
 
     @Test
     void debit_conCuentaDeOtroUsuario_lanza403() {
-        when(accountRepository.findByNumeroCuenta("123")).thenReturn(cuentaDe(1L, EstadoCuenta.ACTIVA, new BigDecimal("100.00")));
+        when(accountRepository.findByNumeroCuentaForUpdate("123")).thenReturn(cuentaDe(1L, EstadoCuenta.ACTIVA, new BigDecimal("100.00")));
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class,
                 () -> accountServiceImpl.debit("123", new AmountRequest(new BigDecimal("10.00")), 2L));
@@ -184,7 +184,7 @@ class AccountServiceImplTest {
 
     @Test
     void debit_conCuentaBloqueada_lanza403() {
-        when(accountRepository.findByNumeroCuenta("123")).thenReturn(cuentaDe(1L, EstadoCuenta.BLOQUEADA, new BigDecimal("100.00")));
+        when(accountRepository.findByNumeroCuentaForUpdate("123")).thenReturn(cuentaDe(1L, EstadoCuenta.BLOQUEADA, new BigDecimal("100.00")));
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class,
                 () -> accountServiceImpl.debit("123", new AmountRequest(new BigDecimal("10.00")), 1L));
@@ -194,7 +194,7 @@ class AccountServiceImplTest {
 
     @Test
     void debit_conFondosInsuficientes_lanza409() {
-        when(accountRepository.findByNumeroCuenta("123")).thenReturn(cuentaDe(1L, EstadoCuenta.ACTIVA, new BigDecimal("5.00")));
+        when(accountRepository.findByNumeroCuentaForUpdate("123")).thenReturn(cuentaDe(1L, EstadoCuenta.ACTIVA, new BigDecimal("5.00")));
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class,
                 () -> accountServiceImpl.debit("123", new AmountRequest(new BigDecimal("10.00")), 1L));
@@ -205,7 +205,7 @@ class AccountServiceImplTest {
     @Test
     void debit_conMontoValido_restaSaldoYGuarda() {
         Account account = cuentaDe(1L, EstadoCuenta.ACTIVA, new BigDecimal("100.00"));
-        when(accountRepository.findByNumeroCuenta("123")).thenReturn(account);
+        when(accountRepository.findByNumeroCuentaForUpdate("123")).thenReturn(account);
         when(accountRepository.save(any(Account.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         Account resultado = accountServiceImpl.debit("123", new AmountRequest(new BigDecimal("40.00")), 1L);
@@ -220,7 +220,7 @@ class AccountServiceImplTest {
 
     @Test
     void credit_conCuentaInexistente_lanza404() {
-        when(accountRepository.findByNumeroCuenta("123")).thenReturn(null);
+        when(accountRepository.findByNumeroCuentaForUpdate("123")).thenReturn(null);
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class,
                 () -> accountServiceImpl.credit("123", new AmountRequest(new BigDecimal("10.00"))));
@@ -230,7 +230,7 @@ class AccountServiceImplTest {
 
     @Test
     void credit_conCuentaBloqueada_lanza403() {
-        when(accountRepository.findByNumeroCuenta("123")).thenReturn(cuentaDe(1L, EstadoCuenta.BLOQUEADA, BigDecimal.ZERO));
+        when(accountRepository.findByNumeroCuentaForUpdate("123")).thenReturn(cuentaDe(1L, EstadoCuenta.BLOQUEADA, BigDecimal.ZERO));
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class,
                 () -> accountServiceImpl.credit("123", new AmountRequest(new BigDecimal("10.00"))));
@@ -241,7 +241,7 @@ class AccountServiceImplTest {
     @Test
     void credit_conMontoValido_sumaSaldoYGuarda() {
         Account account = cuentaDe(1L, EstadoCuenta.ACTIVA, new BigDecimal("50.00"));
-        when(accountRepository.findByNumeroCuenta("123")).thenReturn(account);
+        when(accountRepository.findByNumeroCuentaForUpdate("123")).thenReturn(account);
         when(accountRepository.save(any(Account.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         Account resultado = accountServiceImpl.credit("123", new AmountRequest(new BigDecimal("25.00")));

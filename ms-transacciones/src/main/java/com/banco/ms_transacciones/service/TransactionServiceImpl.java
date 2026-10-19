@@ -2,6 +2,7 @@ package com.banco.ms_transacciones.service;
 
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 import org.springframework.http.HttpStatus;
@@ -35,14 +36,29 @@ public class TransactionServiceImpl implements TransactionService {
     @Override
     public Transaction transfer(TransactionRequest transactionRequest, String auth) {
 
-        Optional<Transaction> key = transactionRepository
+        Optional<Transaction> existing = transactionRepository
             .findByIdempotencyKey( 
                 transactionRequest.getIdempotencyKey()
             );
 
-        if(key.isPresent()){
+        if(existing.isPresent()){
 
-            return key.get();
+            Transaction previous = existing.get();
+
+            boolean sameData =
+                    Objects.equals(previous.getCuentaOrigen(), transactionRequest.getCuentaOrigen())
+                    && Objects.equals(previous.getCuentaDestino(), transactionRequest.getCuentaDestino())
+                    && previous.getMonto() != null
+                    && transactionRequest.getMonto() != null
+                    && previous.getMonto().compareTo(transactionRequest.getMonto()) == 0;            
+
+            if (!sameData) {
+                throw new ResponseStatusException(
+                        HttpStatus.CONFLICT,
+                        "La clave de idempotencia ya fue usada con otros datos");
+            }
+
+            return previous;
             
         }
     
@@ -64,7 +80,8 @@ public class TransactionServiceImpl implements TransactionService {
             accountClient.debit(
                 transactionRequest.getCuentaOrigen(), 
                 transactionRequest.getMonto(), 
-                auth
+                auth,
+                transactionRequest.getIdempotencyKey() + ":DEBITO"
             );
 
         } catch (RestClientException ex) {
@@ -86,7 +103,8 @@ public class TransactionServiceImpl implements TransactionService {
             accountClient.credit(
                 transactionRequest.getCuentaDestino(),
                 transactionRequest.getMonto(),
-                auth
+                auth,
+                transactionRequest.getIdempotencyKey() + ":CREDITO"
             );
 
         } catch (RestClientException ex) {
@@ -96,7 +114,8 @@ public class TransactionServiceImpl implements TransactionService {
             accountClient.credit(
                 transactionRequest.getCuentaOrigen(), 
                 transactionRequest.getMonto(),
-                auth
+                auth,
+                transactionRequest.getIdempotencyKey() + ":COMPENSACION"
             );
 
             transaction.setEstado(EstadoTransaccion.REVERTIDA);
