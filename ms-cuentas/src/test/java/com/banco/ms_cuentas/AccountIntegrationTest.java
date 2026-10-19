@@ -210,7 +210,7 @@ class AccountIntegrationTest {
     }
 
     // ---------------------------------------------------------------
-    // PATCH /account/{numeroCuenta}/estado
+    // PATCH /account/{numeroCuenta}/status
     // ---------------------------------------------------------------
 
     @Test
@@ -218,7 +218,7 @@ class AccountIntegrationTest {
         String authorization = tokenPara("usuario1@example.com", 1L);
         String numeroCuenta = crearCuentaYObtenerNumero(authorization);
 
-        mockMvc.perform(patch("/account/" + numeroCuenta + "/estado")
+        mockMvc.perform(patch("/account/" + numeroCuenta + "/status")
                 .header("Authorization", authorization)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(statusRequestBody("INACTIVA")))
@@ -231,7 +231,7 @@ class AccountIntegrationTest {
         String authorization = tokenPara("usuario1@example.com", 1L);
         String numeroCuenta = crearCuentaYObtenerNumero(authorization);
 
-        mockMvc.perform(patch("/account/" + numeroCuenta + "/estado")
+        mockMvc.perform(patch("/account/" + numeroCuenta + "/status")
                 .header("Authorization", authorization)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(statusRequestBody("BLOQUEADA")))
@@ -239,7 +239,7 @@ class AccountIntegrationTest {
     }
 
     // ---------------------------------------------------------------
-    // POST /internal/account/{numeroCuenta}/debito y /credito
+    // POST /internal/account/{numeroCuenta}/debit y /credit
     // ---------------------------------------------------------------
 
     @Test
@@ -248,13 +248,13 @@ class AccountIntegrationTest {
         String numeroCuenta = crearCuentaYObtenerNumero(authorization);
 
         // Primero se acredita para tener fondos a descontar.
-        mockMvc.perform(post("/internal/account/" + numeroCuenta + "/credito")
+        mockMvc.perform(post("/internal/account/" + numeroCuenta + "/credit")
                 .header("Authorization", authorization)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(amountRequestBody("100.00")))
                 .andExpect(status().isOk());
 
-        mockMvc.perform(post("/internal/account/" + numeroCuenta + "/debito")
+        mockMvc.perform(post("/internal/account/" + numeroCuenta + "/debit")
                 .header("Authorization", authorization)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(amountRequestBody("40.00")))
@@ -267,7 +267,7 @@ class AccountIntegrationTest {
         String authorization = tokenPara("usuario1@example.com", 1L);
         String numeroCuenta = crearCuentaYObtenerNumero(authorization);
 
-        mockMvc.perform(post("/internal/account/" + numeroCuenta + "/debito")
+        mockMvc.perform(post("/internal/account/" + numeroCuenta + "/debit")
                 .header("Authorization", authorization)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(amountRequestBody("10.00")))
@@ -279,7 +279,7 @@ class AccountIntegrationTest {
         String authorization = tokenPara("usuario1@example.com", 1L);
         String numeroCuenta = crearCuentaYObtenerNumero(authorization);
 
-        mockMvc.perform(post("/internal/account/" + numeroCuenta + "/credito")
+        mockMvc.perform(post("/internal/account/" + numeroCuenta + "/credit")
                 .header("Authorization", authorization)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(amountRequestBody("25.00")))

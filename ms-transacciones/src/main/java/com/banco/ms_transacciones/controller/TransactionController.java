@@ -43,7 +43,7 @@ public class TransactionController {
         return  ResponseEntity.status(HttpStatus.CREATED).body(transaccionService.transfer(transactionRequest, authorization));
     }
 
-    @GetMapping ("/{numeroCuenta}")
+    @GetMapping ("/account/{numeroCuenta}")
     public ResponseEntity<?> transactions(@PathVariable String numeroCuenta, 
         @RequestHeader(HttpHeaders.AUTHORIZATION) String authorization){
 

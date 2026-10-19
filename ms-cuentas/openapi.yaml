@@ -1,0 +1,463 @@
+openapi: 3.0.3
+info:
+  title: NeoBanco - MS Cuentas
+  description: >
+    Contrato REST del microservicio de cuentas bancarias. Expone la
+    creación, consulta y cambio de estado de cuentas para el usuario
+    autenticado, además de los endpoints internos de débito/crédito
+    usados exclusivamente por ms-transacciones (bloqueados en el API
+    Gateway para clientes externos).
+  version: 0.1.0
+  contact:
+    name: NeoBanco Microservicios
+servers:
+  - url: http://localhost:8082
+    description: Instancia local del microservicio
+  - url: https://192.168.56.10/api/cuentas
+    description: A través del API Gateway (Nginx) en la VM de edge
+
+tags:
+  - name: Cuentas
+    description: Creación, consulta y cambio de estado de cuentas del usuario autenticado
+  - name: Interno
+    description: >
+      Endpoints de débito/crédito usados únicamente por ms-transacciones
+      para ejecutar transferencias (saga). Bloqueados en el API Gateway
+      (Nginx) para cualquier acceso externo; solo accesibles dentro de
+      la red interna de vm-backend.
+
+paths:
+  /account:
+    post:
+      tags: [Cuentas]
+      summary: Crear una cuenta para el usuario autenticado
+      description: >
+        Crea una cuenta nueva (ACTIVA, saldo inicial 0) asociada al
+        userId extraído del token JWT. El número de cuenta se genera
+        automáticamente (prefijo de banco + número aleatorio único).
+      operationId: createAccount
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccountRequest'
+            examples:
+              default:
+                value:
+                  tipoCuenta: "AHORRO"
+                  moneda: "VES"
+      responses:
+        '201':
+          description: Cuenta creada correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountResponse'
+        '400':
+          description: Error de validación en los campos enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                default:
+                  value:
+                    tipoCuenta: "El campo tipoCuenta no debe ser nulo"
+        '401':
+          description: Token JWT ausente, inválido o expirado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    get:
+      tags: [Cuentas]
+      summary: Listar las cuentas del usuario autenticado
+      description: Devuelve todas las cuentas asociadas al userId del token JWT.
+      operationId: listAccounts
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Lista de cuentas del usuario (puede ser vacía)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AccountResponse'
+        '401':
+          description: Token JWT ausente, inválido o expirado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /account/{numeroCuenta}:
+    get:
+      tags: [Cuentas]
+      summary: Consultar el detalle de una cuenta
+      description: >
+        Devuelve el detalle de la cuenta indicada, siempre que pertenezca
+        al usuario autenticado.
+      operationId: getAccountDetail
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/NumeroCuenta'
+      responses:
+        '200':
+          description: Detalle de la cuenta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountResponse'
+        '401':
+          description: Token JWT ausente, inválido o expirado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: La cuenta existe pero no pertenece al usuario autenticado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    timestamp: "2026-10-19T09:00:00.000+00:00"
+                    status: 403
+                    error: "Forbidden"
+                    path: "/account/0010########"
+        '404':
+          description: No existe una cuenta con ese número
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /account/{numeroCuenta}/status:
+    patch:
+      tags: [Cuentas]
+      summary: Cambiar el estado de una cuenta
+      description: >
+        Permite al propietario de la cuenta cambiar su estado entre
+        ACTIVA e INACTIVA. El estado BLOQUEADA está reservado a gestión
+        administrativa: tanto solicitar el cambio a BLOQUEADA como
+        intentar modificar una cuenta que ya está BLOQUEADA son
+        rechazados con 403.
+      operationId: updateAccountStatus
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/NumeroCuenta'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StatusRequest'
+            examples:
+              default:
+                value:
+                  estadoCuenta: "INACTIVA"
+      responses:
+        '200':
+          description: Estado actualizado correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountResponse'
+        '400':
+          description: Error de validación en los campos enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '401':
+          description: Token JWT ausente, inválido o expirado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: >
+            La cuenta no pertenece al usuario autenticado, o se intenta
+            bloquear/desbloquear la cuenta (requiere gestión administrativa,
+            fuera del alcance de este endpoint)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                operacionAdministrativa:
+                  summary: Se intenta pasar a/desde BLOQUEADA
+                  value:
+                    timestamp: "2026-10-19T09:00:00.000+00:00"
+                    status: 403
+                    error: "Forbidden"
+                    path: "/account/0010########/status"
+        '404':
+          description: No existe una cuenta con ese número
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /internal/account/{numeroCuenta}/debit:
+    post:
+      tags: [Interno]
+      summary: Debitar saldo de una cuenta (uso interno)
+      description: >
+        Descuenta el monto indicado del saldo de la cuenta de origen de
+        una transferencia. Valida que la cuenta pertenezca al usuario
+        autenticado (el emisor de la transferencia) y que no esté
+        BLOQUEADA/INACTIVA. Requiere fondos suficientes. Invocado
+        únicamente por ms-transacciones durante el paso de débito del
+        saga de transferencia; bloqueado externamente en el Gateway.
+      operationId: debitAccount
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/NumeroCuenta'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AmountRequest'
+            examples:
+              default:
+                value:
+                  monto: 50.00
+      responses:
+        '200':
+          description: Débito aplicado correctamente, cuenta actualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountResponse'
+        '400':
+          description: Error de validación (monto ausente o menor a 0.01)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '401':
+          description: Token JWT ausente, inválido o expirado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: La cuenta no pertenece al usuario autenticado, o está BLOQUEADA/INACTIVA
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: No existe una cuenta con ese número
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Fondos insuficientes para realizar el débito
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    timestamp: "2026-10-19T09:00:00.000+00:00"
+                    status: 409
+                    error: "Conflict"
+                    path: "/internal/account/0010########/debit"
+
+  /internal/account/{numeroCuenta}/credit:
+    post:
+      tags: [Interno]
+      summary: Acreditar saldo a una cuenta (uso interno)
+      description: >
+        Suma el monto indicado al saldo de la cuenta de destino de una
+        transferencia (o de la cuenta de origen, cuando se usa como
+        operación de compensación tras un fallo). No valida ownership,
+        ya que el receptor de una transferencia puede ser un usuario
+        distinto al autenticado; solo valida que la cuenta no esté
+        BLOQUEADA/INACTIVA. Invocado únicamente por ms-transacciones;
+        bloqueado externamente en el Gateway.
+      operationId: creditAccount
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/NumeroCuenta'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AmountRequest'
+            examples:
+              default:
+                value:
+                  monto: 50.00
+      responses:
+        '200':
+          description: Crédito aplicado correctamente, cuenta actualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountResponse'
+        '400':
+          description: Error de validación (monto ausente o menor a 0.01)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '401':
+          description: Token JWT ausente, inválido o expirado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: La cuenta está BLOQUEADA/INACTIVA
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: No existe una cuenta con ese número
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  parameters:
+    NumeroCuenta:
+      name: numeroCuenta
+      in: path
+      required: true
+      schema:
+        type: string
+      example: "0010########"
+
+  schemas:
+    AccountRequest:
+      type: object
+      required: [tipoCuenta]
+      properties:
+        tipoCuenta:
+          type: string
+          enum: [AHORRO, CORRIENTE]
+          example: "AHORRO"
+        moneda:
+          type: string
+          default: "VES"
+          example: "VES"
+
+    StatusRequest:
+      type: object
+      required: [estadoCuenta]
+      properties:
+        estadoCuenta:
+          type: string
+          enum: [ACTIVA, INACTIVA, BLOQUEADA]
+          description: >
+            Solo se permite ACTIVA/INACTIVA desde este endpoint; BLOQUEADA
+            es rechazada con 403 (requiere gestión administrativa).
+          example: "INACTIVA"
+
+    AmountRequest:
+      type: object
+      required: [monto]
+      properties:
+        monto:
+          type: number
+          format: double
+          minimum: 0.01
+          example: 50.00
+
+    AccountResponse:
+      type: object
+      description: Representación de una cuenta devuelta por los endpoints de consulta/mutación.
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        numeroCuenta:
+          type: string
+          example: "0010########"
+        userId:
+          type: integer
+          format: int64
+          example: 1
+        tipoCuenta:
+          type: string
+          enum: [AHORRO, CORRIENTE]
+          example: "AHORRO"
+        moneda:
+          type: string
+          example: "VES"
+        saldo:
+          type: number
+          format: double
+          example: 100.00
+        estadoCuenta:
+          type: string
+          enum: [ACTIVA, INACTIVA, BLOQUEADA]
+          example: "ACTIVA"
+        creadoEn:
+          type: string
+          format: date-time
+          example: "2026-08-28T10:15:30"
+        actualizadoEn:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2026-08-28T10:15:30"
+
+    ValidationErrorResponse:
+      type: object
+      description: Mapa de errores de validación, clave = nombre del campo, valor = mensaje
+      additionalProperties:
+        type: string
+
+    ErrorResponse:
+      type: object
+      description: >
+        Formato de error por defecto de Spring Boot (no se usa
+        ProblemDetail ni un @ControllerAdvice personalizado en este
+        microservicio), devuelto para cualquier ResponseStatusException
+        (403/404/409) o fallo del filtro JWT (401).
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          example: "2026-10-19T09:00:00.000+00:00"
+        status:
+          type: integer
+          example: 404
+        error:
+          type: string
+          example: "Not Found"
+        path:
+          type: string
+          example: "/account/0010########"
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - bearerAuth: []

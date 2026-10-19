@@ -306,9 +306,14 @@ Las evidencias recomendadas son capturas del frontend, ejemplos de peticiones RE
 - [x] Añadir pruebas unitarias y de integración de `ms-cuentas` (perfil H2 en memoria).
 - [x] Automatizar build, pruebas y despliegue de `ms-cuentas` con GitHub Actions (`.github/workflows/deploy-cuentas.yml`).
 - [x] Hacer público el repositorio: migrar los jobs de verificación (`test-and-verify`) de `self-hosted` a `ubuntu-latest` en todos los workflows, dejando `self-hosted` solo para los jobs de despliegue gatillados por `push` a `main`.
-- [ ] Crear los proyectos base del resto de microservicios (`ms-transacciones` en progreso, `ms-notificaciones`, `ms-auditoria` pendientes).
-- [ ] Definir los contratos REST del resto de microservicios con OpenAPI (`ms-cuentas` y `ms-transacciones` pendientes).
-- [ ] Implementar transferencias entre cuentas en `ms-transacciones` (modelo `Transaction` e idempotencia por `idempotencyKey` en progreso).
+- [x] Definir el contrato REST de `ms-cuentas` con OpenAPI (`ms-cuentas/openapi.yaml`).
+- [x] Crear el proyecto base de `ms-transacciones` (Java 25, Spring Boot 4, `common-security` como dependencia).
+- [x] Implementar transferencias entre cuentas en `ms-transacciones` (patrón Saga: débito → crédito → compensación, idempotencia por `idempotencyKey`, delegación de ownership a `ms-cuentas` vía JWT reenviado).
+- [x] Implementar listado y detalle de transacciones por cuenta en `ms-transacciones` (`GET /transactions/account/{numeroCuenta}`, `GET /transactions/{id}`).
+- [x] Añadir pruebas unitarias y de integración de `ms-transacciones` (perfil H2 en memoria, `AccountClient` mockeado).
+- [x] Automatizar build, pruebas y despliegue de `ms-transacciones` con GitHub Actions (`.github/workflows/deploy-transaction.yml`), y añadir su ruta al API Gateway (`gateway/nginx/neobanco.conf`).
+- [x] Definir el contrato REST de `ms-transacciones` con OpenAPI (`ms-transacciones/openapi.yaml`).
+- [ ] Crear los proyectos base del resto de microservicios (`ms-notificaciones`, `ms-auditoria` pendientes).
 - [ ] Diseñar la gestión administrativa de cuentas (desbloqueo, back-office) — ver [ADR-0006](docs/adr/0006-area-administrativa-pendiente.md), diferido hasta definir roles/autorización administrativa.
 - [ ] Añadir Redis para idempotencia.
 - [ ] Implementar Transactional Outbox y publicación en RabbitMQ.
@@ -338,14 +343,23 @@ El resto de microservicios (`ms-notificaciones`, `ms-auditoria`) aún no se han 
 
 El microservicio `ms-cuentas` ya cuenta con un flujo funcional de:
 
-- CRUD de cuentas (`POST /account`, `GET /account`, `GET /account/{numeroCuenta}`, `PATCH /account/{numeroCuenta}/estado`), con validación de propiedad (403 si la cuenta no pertenece al usuario autenticado, 404 si no existe).
-- Débito y crédito internos (`POST /internal/account/{numeroCuenta}/debito` y `/credito`), separados en un controller propio (`InternalAccountController`) y bloqueados a nivel de Nginx para que solo sean alcanzables desde la red interna (pensado para ser consumidos por `ms-transacciones`, no por el frontend).
+- CRUD de cuentas (`POST /account`, `GET /account`, `GET /account/{numeroCuenta}`, `PATCH /account/{numeroCuenta}/status`), con validación de propiedad (403 si la cuenta no pertenece al usuario autenticado, 404 si no existe).
+- Débito y crédito internos (`POST /internal/account/{numeroCuenta}/debit` y `/credit`), separados en un controller propio (`InternalAccountController`) y bloqueados a nivel de Nginx para que solo sean alcanzables desde la red interna (consumidos por `ms-transacciones`, no por el frontend).
 - Reglas de negocio: una cuenta `BLOQUEADA` no puede cambiar de estado en ninguna dirección sin intervención administrativa (ver ADR-0006), y ni `BLOQUEADA` ni `INACTIVA` permiten operaciones de débito/crédito.
 - Seguridad compartida con `ms-auth-users` mediante `common-security` (mismo secreto JWT, mismo filtro de validación).
 - Cobertura de pruebas unitarias (Mockito) y de integración (MockMvc + H2 + JWT real) sobre las reglas de ownership, estado y saldo.
+- Contrato OpenAPI documentado (`ms-cuentas/openapi.yaml`).
 - Pipeline de CI/CD (`.github/workflows/deploy-cuentas.yml`) con el mismo patrón seguro de `ms-auth-users`.
 
-`ms-transacciones` está en desarrollo inicial: modelo `Transaction` (estados `PENDIENTE`/`COMPLETADA`/`FALLIDA`/`REVERTIDA`, pensado como una Saga simple con compensación manual), DTO `TransferenciaRequest` con clave de idempotencia, y configuración de seguridad ya alineada con el resto de servicios.
+El microservicio `ms-transacciones` ya cuenta con un flujo funcional de:
+
+- Transferencias entre cuentas (`POST /transactions/transfer`) implementadas como un patrón Saga: débito en la cuenta de origen vía `ms-cuentas`, crédito en la cuenta de destino y, si el crédito falla, compensación automática acreditando de vuelta al origen. Estados posibles: `PENDIENTE`, `COMPLETADA`, `FALLIDA`, `REVERTIDA` y `FALLO_CRITICO_SIN_COMPENSAR` (cuando ni el crédito ni la compensación tienen éxito, requiere intervención manual).
+- Idempotencia por `idempotencyKey`: reenviar la misma clave devuelve la transacción ya creada sin repetir las llamadas a `ms-cuentas`.
+- Ownership delegado por completo a `ms-cuentas`: en lugar de duplicar la lógica de "¿esta cuenta es del usuario autenticado?", `ms-transacciones` reenvía el mismo JWT a los endpoints de `ms-cuentas` y propaga el 403/404 que este devuelve.
+- Listado (`GET /transactions/account/{numeroCuenta}`) y detalle (`GET /transactions/{id}`, con *fallback* de validación entre cuenta destino y origen) de transacciones.
+- Cobertura de pruebas unitarias (Mockito, incluyendo los casos de compensación exitosa/fallida) y de integración (MockMvc + H2 + JWT real, con `AccountClient` mockeado para no depender de `ms-cuentas` real).
+- Contrato OpenAPI documentado (`ms-transacciones/openapi.yaml`).
+- Pipeline de CI/CD (`.github/workflows/deploy-transaction.yml`) con el mismo patrón seguro de `ms-auth-users`/`ms-cuentas`, y ruta propia en el API Gateway (`/api/transacciones/` → puerto 8083).
 
 El repositorio ya es público; los workflows de CI/CD fueron ajustados para que los jobs de verificación (`test-and-verify`) corran en `ubuntu-latest` en lugar de `self-hosted`, evitando exponer las VMs a ejecución de código de Pull Requests externos.
 

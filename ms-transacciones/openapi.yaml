@@ -1,0 +1,380 @@
+openapi: 3.0.3
+info:
+  title: NeoBanco - MS Transacciones
+  description: >
+    Contrato REST del microservicio de transferencias entre cuentas.
+    Implementa un patrón Saga con compensación: debita la cuenta de
+    origen en ms-cuentas, acredita la cuenta de destino y, si el
+    crédito falla, intenta revertir el débito acreditando de vuelta al
+    origen. Las operaciones de ownership (¿el usuario autenticado es
+    dueño de esta cuenta?) se delegan por completo a ms-cuentas
+    reenviando el mismo token JWT recibido.
+  version: 0.1.0
+  contact:
+    name: NeoBanco Microservicios
+servers:
+  - url: http://localhost:8083
+    description: Instancia local del microservicio
+  - url: https://192.168.56.10/api/transacciones
+    description: A través del API Gateway (Nginx) en la VM de edge
+
+tags:
+  - name: Transacciones
+    description: Transferencias entre cuentas, listado y detalle
+
+paths:
+  /transactions/transfer:
+    post:
+      tags: [Transacciones]
+      summary: Realizar una transferencia entre dos cuentas
+      description: >
+        Ejecuta una transferencia mediante un saga de tres pasos: (1)
+        débito en cuentaOrigen vía ms-cuentas (valida ahí mismo que el
+        usuario autenticado sea dueño de cuentaOrigen), (2) crédito en
+        cuentaDestino, (3) si el crédito falla, se intenta compensar
+        acreditando de vuelta a cuentaOrigen. Es idempotente: reenviar
+        la misma idempotencyKey devuelve la transacción ya existente sin
+        volver a ejecutar las llamadas a ms-cuentas.
+      operationId: transfer
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransactionRequest'
+            examples:
+              default:
+                value:
+                  idempotencyKey: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                  cuentaOrigen: "0010########"
+                  cuentaDestino: "0010########"
+                  monto: 50.00
+      responses:
+        '201':
+          description: >
+            Transferencia procesada. El campo `estado` indica el
+            resultado real de la operación: la respuesta HTTP es 201
+            incluso si la transacción terminó en REVERTIDA (revisar el
+            cuerpo para el resultado efectivo).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionResponse'
+              examples:
+                completada:
+                  summary: Transferencia exitosa
+                  value:
+                    id: 10
+                    idempotencyKey: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                    cuentaOrigen: "0010########"
+                    cuentaDestino: "0010########"
+                    monto: 50.00
+                    estado: "COMPLETADA"
+                    tipo: "TRANSFERENCIA"
+                    motivoFallo: null
+                    creadoEn: "2026-10-19T09:00:00"
+                    actualizadoEn: "2026-10-19T09:00:00"
+                idempotente:
+                  summary: Misma idempotencyKey reenviada (no se vuelve a ejecutar)
+                  value:
+                    id: 10
+                    idempotencyKey: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                    cuentaOrigen: "0010########"
+                    cuentaDestino: "0010########"
+                    monto: 50.00
+                    estado: "COMPLETADA"
+                    tipo: "TRANSFERENCIA"
+                    motivoFallo: null
+                    creadoEn: "2026-10-19T09:00:00"
+                    actualizadoEn: "2026-10-19T09:00:00"
+          links: {}
+        '400':
+          description: Error de validación en los campos enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                default:
+                  value:
+                    monto: "El campo monto no debe ser nulo"
+        '401':
+          description: Token JWT ausente, inválido o expirado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: >
+            cuentaOrigen no pertenece al usuario autenticado (error
+            devuelto por ms-cuentas y propagado tal cual durante el
+            débito). La transacción queda registrada como FALLIDA.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: >
+            cuentaOrigen o cuentaDestino no existen en ms-cuentas. La
+            transacción queda registrada como FALLIDA (si falla el
+            débito) o REVERTIDA/FALLO_CRITICO_SIN_COMPENSAR (si falla el
+            crédito, según si la compensación logra ejecutarse).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: >
+            cuentaOrigen y cuentaDestino son la misma cuenta, o
+            ms-cuentas rechazó el débito por fondos insuficientes. En
+            el segundo caso la transacción queda registrada como FALLIDA.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                mismaCuenta:
+                  summary: cuentaOrigen igual a cuentaDestino
+                  value:
+                    timestamp: "2026-10-19T09:00:00.000+00:00"
+                    status: 409
+                    error: "Conflict"
+                    path: "/transactions/transfer"
+        '503':
+          description: >
+            No fue posible conectar con ms-cuentas (timeout, servicio
+            caído, DNS, etc.) durante el débito o el crédito. Si ocurre
+            durante el crédito y la compensación también falla por la
+            misma causa, la transacción queda en estado
+            FALLO_CRITICO_SIN_COMPENSAR (requiere intervención manual).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /transactions/account/{numeroCuenta}:
+    get:
+      tags: [Transacciones]
+      summary: Listar las transacciones de una cuenta
+      description: >
+        Devuelve todas las transacciones donde la cuenta indicada
+        participó como origen o destino. La propiedad de la cuenta se
+        valida reenviando el token JWT a ms-cuentas (GET
+        /account/{numeroCuenta}); no se requiere pasar el userId por
+        separado.
+      operationId: listTransactionsByAccount
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/NumeroCuenta'
+      responses:
+        '200':
+          description: Lista de transacciones de la cuenta (puede ser vacía)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TransactionResponse'
+        '401':
+          description: Token JWT ausente, inválido o expirado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: La cuenta no pertenece al usuario autenticado (validado vía ms-cuentas)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: No existe una cuenta con ese número en ms-cuentas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /transactions/{id}:
+    get:
+      tags: [Transacciones]
+      summary: Consultar el detalle de una transacción
+      description: >
+        Devuelve el detalle de la transacción indicada. La propiedad se
+        valida intentando primero con cuentaDestino y, si falla (el
+        usuario no es dueño de esa cuenta), con cuentaOrigen como
+        respaldo; se responde 403 solo si ninguna de las dos pertenece
+        al usuario autenticado.
+      operationId: getTransactionDetail
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          example: 10
+      responses:
+        '200':
+          description: Detalle de la transacción
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionResponse'
+        '401':
+          description: Token JWT ausente, inválido o expirado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Ni cuentaOrigen ni cuentaDestino pertenecen al usuario autenticado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: No existe una transacción con ese id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    timestamp: "2026-10-19T09:00:00.000+00:00"
+                    status: 404
+                    error: "Not Found"
+                    path: "/transactions/999999"
+
+components:
+  parameters:
+    NumeroCuenta:
+      name: numeroCuenta
+      in: path
+      required: true
+      schema:
+        type: string
+      example: "0010########"
+
+  schemas:
+    TransactionRequest:
+      type: object
+      required: [idempotencyKey, cuentaOrigen, cuentaDestino, monto]
+      properties:
+        idempotencyKey:
+          type: string
+          description: >
+            Clave única generada por el cliente (ej. UUID) para evitar
+            ejecutar la misma transferencia dos veces ante reintentos de
+            red. Reenviar la misma clave devuelve la transacción ya
+            creada sin volver a llamar a ms-cuentas.
+          example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        cuentaOrigen:
+          type: string
+          example: "0010########"
+        cuentaDestino:
+          type: string
+          example: "0010########"
+        monto:
+          type: number
+          format: double
+          minimum: 0.01
+          example: 50.00
+
+    TransactionResponse:
+      type: object
+      description: Representación de una transacción devuelta por los tres endpoints.
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 10
+        idempotencyKey:
+          type: string
+          example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        cuentaOrigen:
+          type: string
+          example: "0010########"
+        cuentaDestino:
+          type: string
+          example: "0010########"
+        monto:
+          type: number
+          format: double
+          example: 50.00
+        estado:
+          type: string
+          enum: [PENDIENTE, COMPLETADA, FALLIDA, REVERTIDA, FALLO_CRITICO_SIN_COMPENSAR]
+          description: >
+            PENDIENTE: estado transitorio justo antes de llamar a
+            ms-cuentas (no debería observarse en la respuesta final).
+            COMPLETADA: débito y crédito exitosos. FALLIDA: el débito
+            falló (no se tocó ninguna cuenta). REVERTIDA: el débito tuvo
+            éxito pero el crédito falló, y la compensación (crédito de
+            vuelta al origen) se ejecutó correctamente. 
+            FALLO_CRITICO_SIN_COMPENSAR: el débito tuvo éxito, el
+            crédito falló, y la compensación también falló; requiere
+            intervención manual porque el dinero quedó debitado sin
+            acreditar en ningún lado.
+          example: "COMPLETADA"
+        tipo:
+          type: string
+          enum: [TRANSFERENCIA]
+          example: "TRANSFERENCIA"
+        motivoFallo:
+          type: string
+          nullable: true
+          description: Mensaje de error de ms-cuentas o de conexión, presente solo si estado distinto de COMPLETADA.
+          example: null
+        creadoEn:
+          type: string
+          format: date-time
+          example: "2026-10-19T09:00:00"
+        actualizadoEn:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2026-10-19T09:00:00"
+
+    ValidationErrorResponse:
+      type: object
+      description: Mapa de errores de validación, clave = nombre del campo, valor = mensaje
+      additionalProperties:
+        type: string
+
+    ErrorResponse:
+      type: object
+      description: >
+        Formato de error por defecto de Spring Boot (no se usa
+        ProblemDetail ni un @ControllerAdvice personalizado en este
+        microservicio). El mismo formato se usa tanto para errores
+        propios (409 misma cuenta, 404 transacción no encontrada) como
+        para errores propagados desde ms-cuentas durante la transferencia.
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          example: "2026-10-19T09:00:00.000+00:00"
+        status:
+          type: integer
+          example: 404
+        error:
+          type: string
+          example: "Not Found"
+        path:
+          type: string
+          example: "/transactions/999999"
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - bearerAuth: []
