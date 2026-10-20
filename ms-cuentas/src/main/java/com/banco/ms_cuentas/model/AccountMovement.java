@@ -3,8 +3,6 @@ package com.banco.ms_cuentas.model;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-import com.banco.ms_cuentas.model.Account.TipoCuenta;
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;

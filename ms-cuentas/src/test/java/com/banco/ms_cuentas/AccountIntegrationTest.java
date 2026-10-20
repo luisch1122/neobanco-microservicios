@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -20,6 +21,12 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
+
+import com.banco.ms_cuentas.model.Account;
+import com.banco.ms_cuentas.model.AccountMovement;
+import com.banco.ms_cuentas.model.AccountMovement.Tipo;
+import com.banco.ms_cuentas.repository.AccountMovementRepository;
+import com.banco.ms_cuentas.repository.AccountRepository;
 
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
@@ -44,6 +51,12 @@ class AccountIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
+    private AccountRepository accountRepository;
+
+    @Autowired
+    private AccountMovementRepository accountMovementRepository;
 
     @Value("${jwt.secret}")
     private String jwtSecret;
@@ -92,6 +105,21 @@ class AccountIntegrationTest {
                   "monto": %s
                 }
                 """.formatted(monto);
+    }
+
+    private void fijarSaldo(String numeroCuenta, String saldo) {
+        Account account = accountRepository.findByNumeroCuenta(numeroCuenta);
+        account.setSaldo(new BigDecimal(saldo));
+        accountRepository.save(account);
+    }
+
+    private void registrarDebitoAsociado(String numeroCuenta, String idempotencyKey, String monto) {
+        AccountMovement movement = new AccountMovement();
+        movement.setIdempotencyKey(idempotencyKey);
+        movement.setCuenta(numeroCuenta);
+        movement.setTipo(Tipo.DEBITO);
+        movement.setMonto(new BigDecimal(monto));
+        accountMovementRepository.save(movement);
     }
 
     /** Crea una cuenta para el usuario dado y devuelve su numeroCuenta. */
@@ -246,16 +274,11 @@ class AccountIntegrationTest {
     void debit_conFondosSuficientes_descuentaSaldo() throws Exception {
         String authorization = tokenPara("usuario1@example.com", 1L);
         String numeroCuenta = crearCuentaYObtenerNumero(authorization);
-
-        // Primero se acredita para tener fondos a descontar.
-        mockMvc.perform(post("/internal/account/" + numeroCuenta + "/credit")
-                .header("Authorization", authorization)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(amountRequestBody("100.00")))
-                .andExpect(status().isOk());
+        fijarSaldo(numeroCuenta, "100.00");
 
         mockMvc.perform(post("/internal/account/" + numeroCuenta + "/debit")
                 .header("Authorization", authorization)
+            .header("Idempotency-Key", "integration-debit:DEBITO")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(amountRequestBody("40.00")))
                 .andExpect(status().isOk())
@@ -269,6 +292,7 @@ class AccountIntegrationTest {
 
         mockMvc.perform(post("/internal/account/" + numeroCuenta + "/debit")
                 .header("Authorization", authorization)
+            .header("Idempotency-Key", "integration-insufficient:DEBITO")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(amountRequestBody("10.00")))
                 .andExpect(status().isConflict());
@@ -278,12 +302,27 @@ class AccountIntegrationTest {
     void credit_sumaSaldo() throws Exception {
         String authorization = tokenPara("usuario1@example.com", 1L);
         String numeroCuenta = crearCuentaYObtenerNumero(authorization);
+        registrarDebitoAsociado(numeroCuenta, "integration-credit:DEBITO", "25.00");
 
         mockMvc.perform(post("/internal/account/" + numeroCuenta + "/credit")
                 .header("Authorization", authorization)
+            .header("Idempotency-Key", "integration-credit:CREDITO")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(amountRequestBody("25.00")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.saldo").value(25.00));
+    }
+
+    @Test
+    void credit_sinDebitoAsociado_devuelve403() throws Exception {
+        String authorization = tokenPara("usuario1@example.com", 1L);
+        String numeroCuenta = crearCuentaYObtenerNumero(authorization);
+
+        mockMvc.perform(post("/internal/account/" + numeroCuenta + "/credit")
+                .header("Authorization", authorization)
+                .header("Idempotency-Key", "integration-orphan:CREDITO")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(amountRequestBody("25.00")))
+                .andExpect(status().isForbidden());
     }
 }

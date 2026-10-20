@@ -102,8 +102,8 @@ class TransactionIntegrationTest {
     @Test
     void transfer_conDatosValidosYServiciosOk_devuelve201ConEstadoCompletada() throws Exception {
         String authorization = tokenPara("usuario1@example.com", 1L);
-        doNothing().when(accountClient).debit(eq("001"), any(BigDecimal.class), anyString());
-        doNothing().when(accountClient).credit(eq("002"), any(BigDecimal.class), anyString());
+        doNothing().when(accountClient).debit(eq("001"), any(BigDecimal.class), anyString(), eq("key-int-1:DEBITO"));
+        doNothing().when(accountClient).credit(eq("002"), any(BigDecimal.class), anyString(), eq("key-int-1:CREDITO"));
 
         mockMvc.perform(post("/transactions/transfer")
                 .header("Authorization", authorization)
@@ -140,8 +140,8 @@ class TransactionIntegrationTest {
     @Test
     void transfer_conMismaIdempotencyKeyDosVeces_noVuelveADebitarNiCreditar() throws Exception {
         String authorization = tokenPara("usuario1@example.com", 1L);
-        doNothing().when(accountClient).debit(eq("001"), any(BigDecimal.class), anyString());
-        doNothing().when(accountClient).credit(eq("002"), any(BigDecimal.class), anyString());
+        doNothing().when(accountClient).debit(eq("001"), any(BigDecimal.class), anyString(), eq("key-int-3:DEBITO"));
+        doNothing().when(accountClient).credit(eq("002"), any(BigDecimal.class), anyString(), eq("key-int-3:CREDITO"));
 
         String body = transferRequestBody("key-int-3", "001", "002", "15.00");
 
@@ -159,14 +159,14 @@ class TransactionIntegrationTest {
                 .andExpect(jsonPath("$.estado").value("COMPLETADA"));
 
         org.mockito.Mockito.verify(accountClient, org.mockito.Mockito.times(1))
-                .debit(eq("001"), any(BigDecimal.class), anyString());
+                .debit(eq("001"), any(BigDecimal.class), anyString(), eq("key-int-3:DEBITO"));
     }
 
     @Test
     void transfer_conDebitoRechazadoPorMsCuentas_devuelveElMismoCodigoYMarcaFallida() throws Exception {
         String authorization = tokenPara("usuario1@example.com", 1L);
         doThrow(HttpClientErrorException.create(HttpStatus.CONFLICT, "Fondos insuficientes", null, null, null))
-                .when(accountClient).debit(eq("001"), any(BigDecimal.class), anyString());
+                .when(accountClient).debit(eq("001"), any(BigDecimal.class), anyString(), eq("key-int-4:DEBITO"));
 
         mockMvc.perform(post("/transactions/transfer")
                 .header("Authorization", authorization)
@@ -182,8 +182,8 @@ class TransactionIntegrationTest {
     @Test
     void listarPorCuenta_conPropietarioValido_devuelveLasTransaccionesDeEsaCuenta() throws Exception {
         String authorization = tokenPara("usuario1@example.com", 1L);
-        doNothing().when(accountClient).debit(eq("001"), any(BigDecimal.class), anyString());
-        doNothing().when(accountClient).credit(eq("002"), any(BigDecimal.class), anyString());
+        doNothing().when(accountClient).debit(eq("001"), any(BigDecimal.class), anyString(), eq("key-int-5:DEBITO"));
+        doNothing().when(accountClient).credit(eq("002"), any(BigDecimal.class), anyString(), eq("key-int-5:CREDITO"));
 
         mockMvc.perform(post("/transactions/transfer")
                 .header("Authorization", authorization)
@@ -223,8 +223,8 @@ class TransactionIntegrationTest {
     @Test
     void detalle_conPropietarioDeCuentaDestino_devuelve200() throws Exception {
         String authorization = tokenPara("usuario1@example.com", 1L);
-        doNothing().when(accountClient).debit(eq("001"), any(BigDecimal.class), anyString());
-        doNothing().when(accountClient).credit(eq("002"), any(BigDecimal.class), anyString());
+        doNothing().when(accountClient).debit(eq("001"), any(BigDecimal.class), anyString(), eq("key-int-6:DEBITO"));
+        doNothing().when(accountClient).credit(eq("002"), any(BigDecimal.class), anyString(), eq("key-int-6:CREDITO"));
 
         String response = mockMvc.perform(post("/transactions/transfer")
                 .header("Authorization", authorization)

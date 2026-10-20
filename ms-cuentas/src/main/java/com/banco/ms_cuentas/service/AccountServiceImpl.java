@@ -173,6 +173,7 @@ public class AccountServiceImpl implements AccountService {
         }
 
         Tipo tipo;
+
         try {
             tipo = Tipo.valueOf(idempotencyKey.substring(separator + 1));
         } catch (IllegalArgumentException ex) {
@@ -183,6 +184,17 @@ public class AccountServiceImpl implements AccountService {
         if (tipo != Tipo.CREDITO && tipo != Tipo.COMPENSACION) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST, "Este endpoint solo permite créditos");
+        }
+
+        String prefijo = idempotencyKey.substring(0, separator);
+
+        boolean debitoExiste = accountMovementRepository
+            .findByIdempotencyKey(prefijo + ":DEBITO")
+            .isPresent();
+
+        if (!debitoExiste) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "No existe un débito asociado a esta operación");
         }
 
         Optional<AccountMovement> existing =

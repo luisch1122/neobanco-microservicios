@@ -61,13 +61,13 @@ class TransactionServiceImplTest {
 
     @Test
     void transfer_conIdempotencyKeyExistente_devuelveLaTransaccionExistente() {
-        Transaction existente = new Transaction();
+                Transaction existente = requestTransaction("001", "002");
         when(transactionRepository.findByIdempotencyKey("key-1")).thenReturn(Optional.of(existente));
 
         Transaction resultado = transactionServiceImpl.transfer(requestDe("001", "002", "10.00"), AUTH);
 
         assertSame(existente, resultado);
-        verify(accountClient, never()).debit(anyString(), any(BigDecimal.class), anyString());
+        verify(accountClient, never()).debit(anyString(), any(BigDecimal.class), anyString(), anyString());
     }
 
     @Test
@@ -89,13 +89,13 @@ class TransactionServiceImplTest {
     void transfer_conDebitoFallido_marcaFallidaYPropagaElError() {
         when(transactionRepository.findByIdempotencyKey("key-1")).thenReturn(Optional.empty());
         doThrow(HttpClientErrorException.create(HttpStatus.CONFLICT, "Fondos insuficientes", null, null, null))
-                .when(accountClient).debit(eq("001"), any(BigDecimal.class), eq(AUTH));
+                .when(accountClient).debit(eq("001"), any(BigDecimal.class), eq(AUTH), eq("key-1:DEBITO"));
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class,
                 () -> transactionServiceImpl.transfer(requestDe("001", "002", "10.00"), AUTH));
 
         assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
-        verify(accountClient, never()).credit(anyString(), any(BigDecimal.class), anyString());
+        verify(accountClient, never()).credit(anyString(), any(BigDecimal.class), anyString(), anyString());
 
         assertEquals(EstadoTransaccion.FALLIDA, capturarUltimoEstadoGuardado());
     }
@@ -104,7 +104,7 @@ class TransactionServiceImplTest {
     void transfer_conFalloDeConexionEnElDebito_mapeaA503() {
         when(transactionRepository.findByIdempotencyKey("key-1")).thenReturn(Optional.empty());
         doThrow(new ResourceAccessException("timeout"))
-                .when(accountClient).debit(eq("001"), any(BigDecimal.class), eq(AUTH));
+                .when(accountClient).debit(eq("001"), any(BigDecimal.class), eq(AUTH), eq("key-1:DEBITO"));
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class,
                 () -> transactionServiceImpl.transfer(requestDe("001", "002", "10.00"), AUTH));
@@ -119,28 +119,28 @@ class TransactionServiceImplTest {
     @Test
     void transfer_conCreditoFallidoYCompensacionExitosa_marcaRevertida() {
         when(transactionRepository.findByIdempotencyKey("key-1")).thenReturn(Optional.empty());
-        doNothing().when(accountClient).debit(eq("001"), any(BigDecimal.class), eq(AUTH));
+        doNothing().when(accountClient).debit(eq("001"), any(BigDecimal.class), eq(AUTH), eq("key-1:DEBITO"));
         doThrow(HttpClientErrorException.create(HttpStatus.NOT_FOUND, "Cuenta no encontrada", null, null, null))
-                .when(accountClient).credit(eq("002"), any(BigDecimal.class), eq(AUTH));
-        doNothing().when(accountClient).credit(eq("001"), any(BigDecimal.class), eq(AUTH));
+                .when(accountClient).credit(eq("002"), any(BigDecimal.class), eq(AUTH), eq("key-1:CREDITO"));
+        doNothing().when(accountClient).credit(eq("001"), any(BigDecimal.class), eq(AUTH), eq("key-1:COMPENSACION"));
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class,
                 () -> transactionServiceImpl.transfer(requestDe("001", "002", "10.00"), AUTH));
 
         assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
         // La compensacion (credito de vuelta a cuentaOrigen) debe haberse invocado.
-        verify(accountClient).credit(eq("001"), any(BigDecimal.class), eq(AUTH));
+        verify(accountClient).credit(eq("001"), any(BigDecimal.class), eq(AUTH), eq("key-1:COMPENSACION"));
         assertEquals(EstadoTransaccion.REVERTIDA, capturarUltimoEstadoGuardado());
     }
 
     @Test
     void transfer_conCreditoFallidoYCompensacionFallida_marcaFalloCriticoSinCompensar() {
         when(transactionRepository.findByIdempotencyKey("key-1")).thenReturn(Optional.empty());
-        doNothing().when(accountClient).debit(eq("001"), any(BigDecimal.class), eq(AUTH));
+        doNothing().when(accountClient).debit(eq("001"), any(BigDecimal.class), eq(AUTH), eq("key-1:DEBITO"));
         doThrow(HttpClientErrorException.create(HttpStatus.NOT_FOUND, "Cuenta no encontrada", null, null, null))
-                .when(accountClient).credit(eq("002"), any(BigDecimal.class), eq(AUTH));
+                .when(accountClient).credit(eq("002"), any(BigDecimal.class), eq(AUTH), eq("key-1:CREDITO"));
         doThrow(new ResourceAccessException("ms-cuentas no disponible"))
-                .when(accountClient).credit(eq("001"), any(BigDecimal.class), eq(AUTH));
+                .when(accountClient).credit(eq("001"), any(BigDecimal.class), eq(AUTH), eq("key-1:COMPENSACION"));
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class,
                 () -> transactionServiceImpl.transfer(requestDe("001", "002", "10.00"), AUTH));
@@ -156,8 +156,8 @@ class TransactionServiceImplTest {
     @Test
     void transfer_conTodoExitoso_marcaCompletadaYDevuelveLaTransaccion() {
         when(transactionRepository.findByIdempotencyKey("key-1")).thenReturn(Optional.empty());
-        doNothing().when(accountClient).debit(eq("001"), any(BigDecimal.class), eq(AUTH));
-        doNothing().when(accountClient).credit(eq("002"), any(BigDecimal.class), eq(AUTH));
+        doNothing().when(accountClient).debit(eq("001"), any(BigDecimal.class), eq(AUTH), eq("key-1:DEBITO"));
+        doNothing().when(accountClient).credit(eq("002"), any(BigDecimal.class), eq(AUTH), eq("key-1:CREDITO"));
 
         Transaction resultado = transactionServiceImpl.transfer(requestDe("001", "002", "10.00"), AUTH);
 

@@ -10,6 +10,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
+import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,6 +26,9 @@ import com.banco.ms_cuentas.dto.StatusRequest;
 import com.banco.ms_cuentas.model.Account;
 import com.banco.ms_cuentas.model.Account.EstadoCuenta;
 import com.banco.ms_cuentas.model.Account.TipoCuenta;
+import com.banco.ms_cuentas.model.AccountMovement;
+import com.banco.ms_cuentas.model.AccountMovement.Tipo;
+import com.banco.ms_cuentas.repository.AccountMovementRepository;
 import com.banco.ms_cuentas.repository.AccountRepository;
 
 @ExtendWith(MockitoExtension.class)
@@ -32,6 +36,9 @@ class AccountServiceImplTest {
 
     @Mock
     private AccountRepository accountRepository;
+
+    @Mock
+    private AccountMovementRepository accountMovementRepository;
 
     @InjectMocks
     private AccountServiceImpl accountServiceImpl;
@@ -177,7 +184,7 @@ class AccountServiceImplTest {
         when(accountRepository.findByNumeroCuentaForUpdate("123")).thenReturn(cuentaDe(1L, EstadoCuenta.ACTIVA, new BigDecimal("100.00")));
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class,
-                () -> accountServiceImpl.debit("123", new AmountRequest(new BigDecimal("10.00")), 2L));
+            () -> accountServiceImpl.debit("123", new AmountRequest(new BigDecimal("10.00")), 2L, "key-1:DEBITO"));
 
         assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
     }
@@ -187,7 +194,7 @@ class AccountServiceImplTest {
         when(accountRepository.findByNumeroCuentaForUpdate("123")).thenReturn(cuentaDe(1L, EstadoCuenta.BLOQUEADA, new BigDecimal("100.00")));
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class,
-                () -> accountServiceImpl.debit("123", new AmountRequest(new BigDecimal("10.00")), 1L));
+                () -> accountServiceImpl.debit("123", new AmountRequest(new BigDecimal("10.00")), 1L, "key-1:DEBITO"));
 
         assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
     }
@@ -197,7 +204,7 @@ class AccountServiceImplTest {
         when(accountRepository.findByNumeroCuentaForUpdate("123")).thenReturn(cuentaDe(1L, EstadoCuenta.ACTIVA, new BigDecimal("5.00")));
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class,
-                () -> accountServiceImpl.debit("123", new AmountRequest(new BigDecimal("10.00")), 1L));
+                () -> accountServiceImpl.debit("123", new AmountRequest(new BigDecimal("10.00")), 1L, "key-1:DEBITO"));
 
         assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
     }
@@ -206,12 +213,43 @@ class AccountServiceImplTest {
     void debit_conMontoValido_restaSaldoYGuarda() {
         Account account = cuentaDe(1L, EstadoCuenta.ACTIVA, new BigDecimal("100.00"));
         when(accountRepository.findByNumeroCuentaForUpdate("123")).thenReturn(account);
+        when(accountMovementRepository.findByIdempotencyKey("key-1:DEBITO")).thenReturn(Optional.empty());
         when(accountRepository.save(any(Account.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        Account resultado = accountServiceImpl.debit("123", new AmountRequest(new BigDecimal("40.00")), 1L);
+        Account resultado = accountServiceImpl.debit("123", new AmountRequest(new BigDecimal("40.00")), 1L, "key-1:DEBITO");
 
         assertEquals(new BigDecimal("60.00"), resultado.getSaldo());
         verify(accountRepository).save(account);
+        verify(accountMovementRepository).save(any(AccountMovement.class));
+    }
+
+    @Test
+    void debit_conLaMismaClaveYDatos_devuelveLaCuentaSinAplicarOtroDebito() {
+        Account account = cuentaDe(1L, EstadoCuenta.ACTIVA, new BigDecimal("60.00"));
+        AccountMovement previous = movimiento("123", Tipo.DEBITO, "40.00");
+        when(accountRepository.findByNumeroCuentaForUpdate("123")).thenReturn(account);
+        when(accountMovementRepository.findByIdempotencyKey("key-1:DEBITO")).thenReturn(Optional.of(previous));
+
+        Account resultado = accountServiceImpl.debit("123", new AmountRequest(new BigDecimal("40.00")), 1L, "key-1:DEBITO");
+
+        assertEquals(account, resultado);
+        assertEquals(new BigDecimal("60.00"), resultado.getSaldo());
+        verify(accountRepository, never()).save(any(Account.class));
+        verify(accountMovementRepository, never()).save(any(AccountMovement.class));
+    }
+
+    @Test
+    void debit_conLaMismaClaveYDatosDistintos_lanza409() {
+        Account account = cuentaDe(1L, EstadoCuenta.ACTIVA, new BigDecimal("60.00"));
+        when(accountRepository.findByNumeroCuentaForUpdate("123")).thenReturn(account);
+        when(accountMovementRepository.findByIdempotencyKey("key-1:DEBITO"))
+                .thenReturn(Optional.of(movimiento("123", Tipo.DEBITO, "25.00")));
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> accountServiceImpl.debit("123", new AmountRequest(new BigDecimal("40.00")), 1L, "key-1:DEBITO"));
+
+        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
+        verify(accountRepository, never()).save(any(Account.class));
     }
 
     // ---------------------------------------------------------------
@@ -223,7 +261,7 @@ class AccountServiceImplTest {
         when(accountRepository.findByNumeroCuentaForUpdate("123")).thenReturn(null);
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class,
-                () -> accountServiceImpl.credit("123", new AmountRequest(new BigDecimal("10.00"))));
+                () -> accountServiceImpl.credit("123", new AmountRequest(new BigDecimal("10.00")), "key-1:CREDITO"));
 
         assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
     }
@@ -231,9 +269,11 @@ class AccountServiceImplTest {
     @Test
     void credit_conCuentaBloqueada_lanza403() {
         when(accountRepository.findByNumeroCuentaForUpdate("123")).thenReturn(cuentaDe(1L, EstadoCuenta.BLOQUEADA, BigDecimal.ZERO));
+        when(accountMovementRepository.findByIdempotencyKey("key-1:DEBITO"))
+            .thenReturn(Optional.of(movimiento("123", Tipo.DEBITO, "10.00")));
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class,
-                () -> accountServiceImpl.credit("123", new AmountRequest(new BigDecimal("10.00"))));
+            () -> accountServiceImpl.credit("123", new AmountRequest(new BigDecimal("10.00")), "key-1:CREDITO"));
 
         assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
     }
@@ -242,11 +282,36 @@ class AccountServiceImplTest {
     void credit_conMontoValido_sumaSaldoYGuarda() {
         Account account = cuentaDe(1L, EstadoCuenta.ACTIVA, new BigDecimal("50.00"));
         when(accountRepository.findByNumeroCuentaForUpdate("123")).thenReturn(account);
+        when(accountMovementRepository.findByIdempotencyKey("key-1:DEBITO"))
+            .thenReturn(Optional.of(movimiento("123", Tipo.DEBITO, "10.00")));
+        when(accountMovementRepository.findByIdempotencyKey("key-1:CREDITO")).thenReturn(Optional.empty());
         when(accountRepository.save(any(Account.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        Account resultado = accountServiceImpl.credit("123", new AmountRequest(new BigDecimal("25.00")));
+        Account resultado = accountServiceImpl.credit("123", new AmountRequest(new BigDecimal("25.00")), "key-1:CREDITO");
 
         assertEquals(new BigDecimal("75.00"), resultado.getSaldo());
         verify(accountRepository).save(account);
+        verify(accountMovementRepository).save(any(AccountMovement.class));
+        }
+
+        @Test
+        void credit_sinDebitoAsociado_lanza403() {
+        when(accountRepository.findByNumeroCuentaForUpdate("123"))
+            .thenReturn(cuentaDe(1L, EstadoCuenta.ACTIVA, BigDecimal.ZERO));
+        when(accountMovementRepository.findByIdempotencyKey("key-1:DEBITO")).thenReturn(Optional.empty());
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+            () -> accountServiceImpl.credit("123", new AmountRequest(new BigDecimal("10.00")), "key-1:CREDITO"));
+
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+        verify(accountRepository, never()).save(any(Account.class));
+        }
+
+        private AccountMovement movimiento(String cuenta, Tipo tipo, String monto) {
+        AccountMovement movement = new AccountMovement();
+        movement.setCuenta(cuenta);
+        movement.setTipo(tipo);
+        movement.setMonto(new BigDecimal(monto));
+        return movement;
     }
 }
