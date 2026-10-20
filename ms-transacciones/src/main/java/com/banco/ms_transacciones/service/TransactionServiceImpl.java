@@ -6,17 +6,18 @@ import java.util.Objects;
 import java.util.Optional;
 
 import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClientException;
-import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.banco.ms_transacciones.client.AccountClient;
+import com.banco.ms_transacciones.client.MovementStatus;
 import com.banco.ms_transacciones.dto.TransactionRequest;
 import com.banco.ms_transacciones.model.Transaction;
 import com.banco.ms_transacciones.model.Transaction.EstadoTransaccion;
+import com.banco.ms_transacciones.model.Transaction.PasoSaga;
 import com.banco.ms_transacciones.repository.TransactionRepository;
+import com.banco.ms_transacciones.util.RestClientErrorUtils;
 
 
 @Service
@@ -75,82 +76,121 @@ public class TransactionServiceImpl implements TransactionService {
         
         transactionRepository.save(transaction);
 
-        try {
+        String keyDebito = transactionRequest.getIdempotencyKey() + ":DEBITO";
 
-            accountClient.debit(
-                transactionRequest.getCuentaOrigen(), 
-                transactionRequest.getMonto(), 
+        ResultadoPaso debito = ejecutarPaso(
+            () -> accountClient.debit(
+                transactionRequest.getCuentaOrigen(),
+                transactionRequest.getMonto(),
                 auth,
-                transactionRequest.getIdempotencyKey() + ":DEBITO"
-            );
+                keyDebito
+            ),
+            keyDebito,
+            auth
+        );
 
-        } catch (RestClientException ex) {
+        if (debito.resultado() == ResultadoPaso.Resultado.AMBIGUA) {
 
-            transaction.setEstado(EstadoTransaccion.FALLIDA);
-            transaction.setMotivoFallo(getErrorMessage(ex));
+            transaction.setEstado(EstadoTransaccion.PENDIENTE_VERIFICACION);
+            transaction.setPasoPendiente(PasoSaga.DEBITO_ORIGEN);
+            transaction.setMotivoFallo(debito.mensaje());
 
             transactionRepository.save(transaction);
 
-            throw new ResponseStatusException(
-                getErrorStatus(ex),
-                getErrorMessage(ex),
-                ex
-            );
+            // No se lanza excepción: no sabemos si el dinero ya salió de la
+            // cuenta de origen. La conciliación resolverá el estado real.
+            return transaction;
         }
 
-        try {
+        if (debito.resultado() == ResultadoPaso.Resultado.FALLO) {
 
-            accountClient.credit(
+            transaction.setEstado(EstadoTransaccion.FALLIDA);
+            transaction.setMotivoFallo(debito.mensaje());
+
+            transactionRepository.save(transaction);
+
+            throw new ResponseStatusException(debito.status(), debito.mensaje());
+        }
+
+        String keyCredito = transactionRequest.getIdempotencyKey() + ":CREDITO";
+
+        ResultadoPaso credito = ejecutarPaso(
+            () -> accountClient.credit(
                 transactionRequest.getCuentaDestino(),
                 transactionRequest.getMonto(),
                 auth,
-                transactionRequest.getIdempotencyKey() + ":CREDITO"
-            );
+                keyCredito
+            ),
+            keyCredito,
+            auth
+        );
 
-        } catch (RestClientException ex) {
-            
-            try {
+        if (credito.resultado() == ResultadoPaso.Resultado.EXITO) {
 
-            accountClient.credit(
-                transactionRequest.getCuentaOrigen(), 
-                transactionRequest.getMonto(),
-                auth,
-                transactionRequest.getIdempotencyKey() + ":COMPENSACION"
-            );
+            transaction.setEstado(EstadoTransaccion.COMPLETADA);
 
-            transaction.setEstado(EstadoTransaccion.REVERTIDA);
-            transaction.setMotivoFallo(getErrorMessage(ex));
-            
             transactionRepository.save(transaction);
 
-            } catch (RestClientException e) {
-
-                transaction.setEstado(EstadoTransaccion.FALLO_CRITICO_SIN_COMPENSAR);
-                transaction.setMotivoFallo(getErrorMessage(e));
-
-            
-                transactionRepository.save(transaction);
-
-                throw new ResponseStatusException(
-                    getErrorStatus(e),
-                    getErrorMessage(e),
-                    e
-                );
-
-            }
-
-            throw new ResponseStatusException(
-                getErrorStatus(ex),
-                getErrorMessage(ex),
-                ex
-            );
+            return transaction;
         }
 
-        transaction.setEstado(EstadoTransaccion.COMPLETADA);
+        if (credito.resultado() == ResultadoPaso.Resultado.AMBIGUA) {
+
+            transaction.setEstado(EstadoTransaccion.PENDIENTE_VERIFICACION);
+            transaction.setPasoPendiente(PasoSaga.CREDITO_DESTINO);
+            transaction.setMotivoFallo(credito.mensaje());
+
+            transactionRepository.save(transaction);
+
+            // No se compensa todavía: no sabemos si el crédito a destino ya
+            // se aplicó. La conciliación lo confirmará antes de decidir.
+            return transaction;
+        }
+
+        // El crédito a destino falló de forma definitiva -> compensar el débito de origen.
+        String keyCompensacion = transactionRequest.getIdempotencyKey() + ":COMPENSACION";
+
+        ResultadoPaso compensacion = ejecutarPaso(
+            () -> accountClient.credit(
+                transactionRequest.getCuentaOrigen(),
+                transactionRequest.getMonto(),
+                auth,
+                keyCompensacion
+            ),
+            keyCompensacion,
+            auth
+        );
+
+        if (compensacion.resultado() == ResultadoPaso.Resultado.EXITO) {
+
+            transaction.setEstado(EstadoTransaccion.REVERTIDA);
+            transaction.setMotivoFallo(credito.mensaje());
+
+            transactionRepository.save(transaction);
+
+            throw new ResponseStatusException(credito.status(), credito.mensaje());
+        }
+
+        if (compensacion.resultado() == ResultadoPaso.Resultado.AMBIGUA) {
+
+            transaction.setEstado(EstadoTransaccion.PENDIENTE_VERIFICACION);
+            transaction.setPasoPendiente(PasoSaga.COMPENSACION_ORIGEN);
+            transaction.setMotivoFallo(compensacion.mensaje());
+
+            transactionRepository.save(transaction);
+
+            return transaction;
+        }
+
+        // Ni el crédito ni la compensación se confirmaron: estado crítico,
+        // requiere que la conciliación lo siga reintentando.
+        transaction.setEstado(EstadoTransaccion.FALLO_CRITICO_SIN_COMPENSAR);
+        transaction.setPasoPendiente(PasoSaga.COMPENSACION_ORIGEN);
+        transaction.setMotivoFallo(compensacion.mensaje());
 
         transactionRepository.save(transaction);
-    
-        return transaction;
+
+        throw new ResponseStatusException(compensacion.status(), compensacion.mensaje());
     }
 
     @Override
@@ -163,8 +203,8 @@ public class TransactionServiceImpl implements TransactionService {
         } catch (RestClientException e) {
 
             throw new ResponseStatusException(
-                    getErrorStatus(e),
-                    getErrorMessage(e),
+                    RestClientErrorUtils.getErrorStatus(e),
+                    RestClientErrorUtils.getErrorMessage(e),
                     e
                 );
 
@@ -205,8 +245,8 @@ public class TransactionServiceImpl implements TransactionService {
                 } catch (RestClientException ex) {
 
                     throw new ResponseStatusException(
-                        getErrorStatus(ex),
-                        getErrorMessage(ex),
+                        RestClientErrorUtils.getErrorStatus(ex),
+                        RestClientErrorUtils.getErrorMessage(ex),
                         ex
                     );
                   }
@@ -220,18 +260,47 @@ public class TransactionServiceImpl implements TransactionService {
 
     }
 
-    private String getErrorMessage(RestClientException ex) {
-        if (ex instanceof RestClientResponseException) {
-            return ((RestClientResponseException) ex).getResponseBodyAsString();
-        }
-        return "No fue posible conectar con el servicio de cuentas";
-    }
+    /**
+     * Ejecuta una llamada a ms-cuentas (débito/crédito/compensación) y
+     * clasifica el resultado. Si la llamada falla sin respuesta HTTP
+     * explícita (timeout, conexión rechazada), no se asume fallo: se
+     * verifica de inmediato contra ms-cuentas si el movimiento realmente se
+     * aplicó, para no marcar como fallida una operación que en realidad sí
+     * tuvo éxito (recuperación de operaciones ambiguas "en línea").
+     */
+    private ResultadoPaso ejecutarPaso(Runnable accion, String idempotencyKeyPaso, String auth) {
 
-    private HttpStatusCode getErrorStatus(RestClientException ex) {
-        if (ex instanceof RestClientResponseException) {
-            return ((RestClientResponseException) ex).getStatusCode();
+        try {
+
+            accion.run();
+            return ResultadoPaso.exito();
+
+        } catch (RestClientException ex) {
+
+            if (!RestClientErrorUtils.esAmbigua(ex)) {
+                return ResultadoPaso.fallo(
+                    RestClientErrorUtils.getErrorStatus(ex),
+                    RestClientErrorUtils.getErrorMessage(ex)
+                );
+            }
+
+            MovementStatus status;
+
+            try {
+                status = accountClient.verifyMovement(idempotencyKeyPaso, auth);
+            } catch (RestClientException verificacionEx) {
+                return ResultadoPaso.ambigua(RestClientErrorUtils.getErrorMessage(ex));
+            }
+
+            return switch (status) {
+                case EXISTE -> ResultadoPaso.exito();
+                case NO_EXISTE -> ResultadoPaso.fallo(
+                    RestClientErrorUtils.getErrorStatus(ex),
+                    RestClientErrorUtils.getErrorMessage(ex)
+                );
+                case DESCONOCIDO -> ResultadoPaso.ambigua(RestClientErrorUtils.getErrorMessage(ex));
+            };
         }
-        return HttpStatus.SERVICE_UNAVAILABLE;
     }
 
 }

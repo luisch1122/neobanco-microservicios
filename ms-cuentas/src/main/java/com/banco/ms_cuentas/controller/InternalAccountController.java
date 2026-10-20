@@ -6,6 +6,7 @@ import java.util.Map;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.validation.BindingResult;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -54,6 +55,14 @@ public class InternalAccountController {
         if (result.hasFieldErrors()) return validation(result);
         
         return ResponseEntity.ok(accountService.credit(numeroCuenta, amountRequest, idempotencyKey));
+    }
+
+    @GetMapping("/movement/{idempotencyKey}")
+    public ResponseEntity<?> movement(@PathVariable String idempotencyKey) {
+
+        return accountService.findMovement(idempotencyKey)
+            .<ResponseEntity<?>>map(ResponseEntity::ok)
+            .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     private ResponseEntity<?> validation(BindingResult result) {

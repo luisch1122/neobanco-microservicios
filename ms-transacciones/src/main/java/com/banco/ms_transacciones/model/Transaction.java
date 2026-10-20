@@ -48,17 +48,27 @@ public class Transaction {
 
     private String motivoFallo;
 
+    @Enumerated(EnumType.STRING)
+    private PasoSaga pasoPendiente;
+
+    @Column(nullable = false)
+    private Integer intentosConciliacion = 0;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime creadoEn;
 
     private LocalDateTime actualizadoEn;
 
     public enum EstadoTransaccion {
-        PENDIENTE, COMPLETADA, FALLIDA, REVERTIDA, FALLO_CRITICO_SIN_COMPENSAR
+        PENDIENTE, COMPLETADA, FALLIDA, REVERTIDA, FALLO_CRITICO_SIN_COMPENSAR, PENDIENTE_VERIFICACION
     }
 
     public enum TipoTransaccion {
         TRANSFERENCIA
+    }
+
+    public enum PasoSaga {
+        DEBITO_ORIGEN, CREDITO_DESTINO, COMPENSACION_ORIGEN
     }
 
     @PrePersist

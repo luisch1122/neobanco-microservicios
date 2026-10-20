@@ -6,6 +6,7 @@ import java.util.Optional;
 import org.springframework.data.repository.CrudRepository;
 
 import com.banco.ms_transacciones.model.Transaction;
+import com.banco.ms_transacciones.model.Transaction.EstadoTransaccion;
 
 public interface TransactionRepository extends CrudRepository<Transaction, Long> {
 
@@ -14,5 +15,7 @@ public interface TransactionRepository extends CrudRepository<Transaction, Long>
     List<Transaction> findByCuentaOrigenOrCuentaDestino(String cuentaOrigen, String cuentaDestino);
 
     Optional<Transaction> findById(Long id);
+
+    List<Transaction> findByEstadoIn(List<EstadoTransaccion> estados);
 
 }

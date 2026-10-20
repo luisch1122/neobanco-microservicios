@@ -5,6 +5,8 @@ import java.math.BigDecimal;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
 
 import com.banco.ms_transacciones.dto.AmountRequest;
 
@@ -44,6 +46,33 @@ public class AccountClient {
             .header("Authorization", auth)
             .retrieve()
             .toBodilessEntity();
+    }
+
+    public MovementStatus verifyMovement(String idempotencyKey, String auth) {
+
+        try {
+
+            restClient.get()
+                .uri("/internal/account/movement/{idempotencyKey}", idempotencyKey)
+                .header("Authorization", auth)
+                .retrieve()
+                .toBodilessEntity();
+
+            return MovementStatus.EXISTE;
+
+        } catch (RestClientResponseException ex) {
+
+            if (ex.getStatusCode().value() == 404) {
+                return MovementStatus.NO_EXISTE;
+            }
+
+            return MovementStatus.DESCONOCIDO;
+
+        } catch (RestClientException ex) {
+
+            return MovementStatus.DESCONOCIDO;
+
+        }
     }
 
 }

@@ -242,6 +242,13 @@ public class AccountServiceImpl implements AccountService {
     }
 
     @Override
+    public Optional<AccountMovement> findMovement(String idempotencyKey) {
+
+        return accountMovementRepository.findByIdempotencyKey(idempotencyKey);
+
+    }
+
+    @Override
     public  String createNumberAccount() {
 
         String numBanco = "0010";

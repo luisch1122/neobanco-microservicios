@@ -1,11 +1,13 @@
 package com.banco.ms_cuentas.service;
 
 import java.util.List;
+import java.util.Optional;
 
 import com.banco.ms_cuentas.dto.AccountRequest;
 import com.banco.ms_cuentas.dto.AmountRequest;
 import com.banco.ms_cuentas.dto.StatusRequest;
 import com.banco.ms_cuentas.model.Account;
+import com.banco.ms_cuentas.model.AccountMovement;
 
 public interface AccountService {
 
@@ -20,6 +22,8 @@ public interface AccountService {
     Account debit(String numeroCuenta, AmountRequest amountRequest, Long userId, String idempotencyKey);
 
     Account credit(String numeroCuenta, AmountRequest amountRequest, String idempotencyKey);
+
+    Optional<AccountMovement> findMovement(String idempotencyKey);
 
     String createNumberAccount();
 
