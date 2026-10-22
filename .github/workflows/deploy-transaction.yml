@@ -83,7 +83,6 @@ jobs:
           GITHUB_ACTOR: ${{ github.actor }}
         run: |
           java -version
-          bash mvnw -B clean package -DskipTests
           docker buildx build --load \
             --secret id=maven_settings,src="$HOME/.m2/settings.xml" \
             --secret id=github_token,env=GITHUB_TOKEN \

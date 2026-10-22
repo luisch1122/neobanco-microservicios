@@ -10,7 +10,8 @@ WORKDIR /app
 # aprovechando la cache de capas de Docker en builds posteriores.
 COPY .mvn/ .mvn/
 COPY mvnw pom.xml ./
-RUN --mount=type=secret,id=maven_settings,target=/root/.m2/settings.xml \
+RUN --mount=type=cache,target=/root/.m2/repository,sharing=locked \
+	--mount=type=secret,id=maven_settings,target=/root/.m2/settings.xml \
 	--mount=type=secret,id=github_token,env=GITHUB_TOKEN \
 	--mount=type=secret,id=github_actor,env=GITHUB_ACTOR \
 	chmod +x mvnw && ./mvnw -q -B dependency:go-offline
@@ -18,7 +19,8 @@ RUN --mount=type=secret,id=maven_settings,target=/root/.m2/settings.xml \
 
 # Ahora copiamos el codigo fuente y empaquetamos el jar
 COPY src ./src
-RUN --mount=type=secret,id=maven_settings,target=/root/.m2/settings.xml \
+RUN --mount=type=cache,target=/root/.m2/repository,sharing=locked \
+	--mount=type=secret,id=maven_settings,target=/root/.m2/settings.xml \
 	--mount=type=secret,id=github_token,env=GITHUB_TOKEN \
 	--mount=type=secret,id=github_actor,env=GITHUB_ACTOR \
 	./mvnw -q -B clean package -DskipTests
